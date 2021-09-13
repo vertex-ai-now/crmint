@@ -733,14 +733,17 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', False, '', 'BQ Dataset Location'),
       ('template', 'text', True, '', 'GA audience JSON template'),
       ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   def _infer_audiences(self):
     self._inferred_audiences = {}
-    fields = [f.name for f in self._table.schema]
-    for row in self._table.fetch_data():
+    table = self._client.get_table(self._table)
+    rows = self._client.list_rows(self._table, selected_fields=table.schema[:])
+    fields = [f.name for f in table.schema]
+    for row in rows:
       try:
         template_rendered = self._params['template'] % dict(zip(fields, row))
         audience = json.loads(template_rendered)
@@ -838,7 +841,6 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
     else:
       self._account_id = self._parse_accountid_from_propertyid()
     self._bq_setup()
-    self._table.reload()
     self._ga_setup('v3')
     self._infer_audiences()
     self._get_audiences()
