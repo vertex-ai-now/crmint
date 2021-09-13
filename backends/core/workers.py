@@ -1429,14 +1429,13 @@ class BQMLTrainer(BQWorker):
   PARAMS = [
       ('query', 'sql', True, '', 'Query'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_location', 'string', False, '', 'BQ Dataset Location'),
   ]
 
   def _execute(self):
-    client = self._get_client()
-    job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
-                                self.__class__.__name__, uuid.uuid4())
-    job = client.run_async_query(job_name, self._params['query'])
-    job.use_legacy_sql = False
+    job = self._get_client().query(
+      self._params['query'],
+      location=self._params['bq_dataset_location'])
     self._begin_and_wait(job)
 
 
