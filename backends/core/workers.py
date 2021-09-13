@@ -1279,6 +1279,7 @@ class BQToMeasurementProtocol(BQWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('mp_batch_size', 'number', True, 20, ('Measurement Protocol batch size '
                                              '(https://goo.gl/7VeWuB)')),
       ('debug', 'boolean', True, False, 'Debug mode'),
@@ -1292,12 +1293,13 @@ class BQToMeasurementProtocol(BQWorker):
 
   def _execute(self):
     self._bq_setup()
-    self._table.reload()
     page_token = self._params.get('bq_page_token', None)
     batch_size = self.BQ_BATCH_SIZE
-    query_iterator = self.retry(self._table.fetch_data)(
-        max_results=batch_size,
-        page_token=page_token)
+    table = self._client.get_table(self._table)
+    query_iterator = self._client.list_rows(
+        self._table,
+        page_token=page_token,
+        selected_fields=table.schema[:])
 
     enqueued_jobs_count = 0
     for query_page in query_iterator.pages:  # pylint: disable=unused-variable
@@ -1398,7 +1400,6 @@ class BQToMeasurementProtocolProcessor(BQWorker):
       response = requests.post('https://www.google-analytics.com/batch',
                                headers=headers,
                                data=batch_payload)
-
       if response.status_code != requests.codes.ok:
         raise MeasurementProtocolException(
             'Failed to send event hit with status code (%s) and parameters: %s'
@@ -1412,10 +1413,12 @@ class BQToMeasurementProtocolProcessor(BQWorker):
       escaped_message = e.message.replace('%', '%%')
       self.log_error(escaped_message)
 
-  def _process_query_results(self, query_data, query_schema):
+  def _process_query_results(self, query_data, query_schema, total_rows):
     """Sends event hits from query data."""
     fields = [f.name for f in query_schema]
     payload_list = []
+    i = 0
+    logs = []
     for row in query_data:
       data = dict(zip(fields, row))
       payload = self._get_payload_from_data(data)
@@ -1423,21 +1426,31 @@ class BQToMeasurementProtocolProcessor(BQWorker):
       if len(payload_list) >= self._params['mp_batch_size']:
         self._send_payload_list(payload_list)
         payload_list = []
+        i += 1
+        completed = int(((int(self._params['mp_batch_size']) * i) / total_rows) * 100)
+        if completed % 5 == 0 and completed not in logs:
+          self.log_info(
+            'Completed {}%% of the measurement protocol hits'.format(completed))
+          logs.append(completed)
     if payload_list:
       # Sends remaining payloads.
       self._send_payload_list(payload_list)
+      self.log_info(
+        'Completed 100%% of the measurement protocol hits')
 
   def _execute(self):
     self._bq_setup()
-    self._table.reload()
     self._debug = self._params['debug']
     page_token = self._params['bq_page_token'] or None
     batch_size = self._params['bq_batch_size']
-    query_iterator = self.retry(self._table.fetch_data)(
-        max_results=batch_size,
-        page_token=page_token)
+    table = self._client.get_table(self._table)
+    query_iterator = self._client.list_rows(
+        self._table,
+        page_token=page_token,
+        selected_fields=table.schema[:])
+    total_rows = len(query_iterator)
     query_first_page = next(query_iterator.pages)
-    self._process_query_results(query_first_page, query_iterator.schema)
+    self._process_query_results(query_first_page, table.schema, total_rows)
 
 
 class BQMLTrainer(BQWorker):
