@@ -262,19 +262,27 @@ class BQQueryLauncher(BQWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', False, '', 'BQ Dataset Location'),
       ('overwrite', 'boolean', True, False, 'Overwrite table'),
   ]
 
   def _execute(self):
     self._bq_setup()
-    job = self._client.run_async_query(self._job_name, self._params['query'])
-    job.destination = self._table
-    job.use_legacy_sql = False
+    _job_config = bigquery.QueryJobConfig()
+    _job_config.destination = self._table
     if self._params['overwrite']:
-      job.write_disposition = 'WRITE_TRUNCATE'
+      _job_config.write_disposition = 'WRITE_TRUNCATE'
     else:
-      job.write_disposition = 'WRITE_APPEND'
-    self._begin_and_wait(job)
+      _job_config.write_disposition = 'WRITE_APPEND'
+    job = self._client.query(
+      self._params['query'],
+      location=self._params['bq_dataset_location'],
+      job_config=_job_config)
+    try:
+      job.result()
+    except BigQueryException as e:
+      escaped_message = e.message.replace('%', '%%')
+      self.log_error(escaped_message)
 
 
 class StorageWorker(Worker):
