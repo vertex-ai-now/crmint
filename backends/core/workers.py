@@ -484,6 +484,7 @@ class BQToStorageExporter(BQWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('destination_uri', 'string', True, '',
        'Destination CSV or JSON file URI (e.g. gs://bucket/data.csv)'),
       ('print_header', 'boolean', True, False, 'Include a header row'),
@@ -492,12 +493,20 @@ class BQToStorageExporter(BQWorker):
 
   def _execute(self):
     self._bq_setup()
-    job = self._client.extract_table_to_storage(
-        self._job_name, self._table, self._params['destination_uri'])
-    job.print_header = self._params['print_header']
+    _job_config = bigquery.ExtractJobConfig()
+    _job_config.print_header = self._params['print_header']
     if self._params['export_json']:
-      job.destination_format = 'NEWLINE_DELIMITED_JSON'
-    self._begin_and_wait(job)
+      _job_config.destination_format = 'NEWLINE_DELIMITED_JSON'
+    extract_job = self._client.extract_table(
+      self._table,
+      self._params['destination_uri'],
+      job_config=_job_config,
+      location=self._params['bq_dataset_location'])
+    try:
+      extract_job.result()
+    except BigQueryException as e:
+      escaped_message = e.message.replace('%', '%%')
+      self.log_error(escaped_message)
 
 
 class GAWorker(Worker):
