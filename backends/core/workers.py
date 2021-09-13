@@ -184,6 +184,11 @@ class Commenter(Worker):
           self._params['comment'])
       raise WorkerException(msg)
 
+      
+class BigQueryException(WorkerException):
+  """BigQuery execution exception."""
+  pass
+
 
 class BQWorker(Worker):
   """Abstract BigQuery worker."""
