@@ -861,14 +861,17 @@ class GAGoalsUpdater(BQWorker, GAWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', False, '', 'BQ Dataset Location'),
       ('template', 'text', True, '', 'GA goal JSON template'),
       ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   def _infer_goals(self):
     self._inferred_goals = {}
-    fields = [f.name for f in self._table.schema]
-    for row in self._table.fetch_data():
+    table = self._client.get_table(self._table)
+    rows = self._client.list_rows(self._table, selected_fields=table.schema[:])
+    fields = [f.name for f in table.schema]
+    for row in rows:
       try:
         template_rendered = self._params['template'] % (
           dict(zip(fields, row)))
@@ -968,12 +971,11 @@ class GAGoalsUpdater(BQWorker, GAWorker):
     else:
       self._account_id = self._parse_accountid_from_propertyid()
     self._bq_setup()
-    self._table.reload()
     self._ga_setup('v3')
     self._infer_goals()
     self._get_goals()
     self._get_diff()
-    self._update_ga_goals()    
+    self._update_ga_goals()
 
 
 class MLWorker(Worker):
