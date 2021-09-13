@@ -189,50 +189,63 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
-    bigquery.Client.SCOPE = (
-        'https://www.googleapis.com/auth/bigquery',
+    credentials = service_account.Credentials.from_service_account_file(
+      _KEY_FILE, scopes=[
         'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive')
-    client = bigquery.Client.from_service_account_json(_KEY_FILE)
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/drive'],
+    )
     if self._params['bq_project_id'].strip():
-      client.project = self._params['bq_project_id']
+      project_id = self._params['bq_project_id']
+    else:
+      project_id = credentials.project_id
+    client = bigquery.Client(
+      credentials=credentials,
+      project=project_id)
     return client
 
   def _bq_setup(self):
     self._client = self._get_client()
     self._dataset = self._client.dataset(self._params['bq_dataset_id'])
     self._table = self._dataset.table(self._params['bq_table_id'])
-    self._job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
-                                      self.__class__.__name__, uuid.uuid4())
 
   def _begin_and_wait(self, *jobs):
-    for job in jobs:
-      job.begin()
+    start_time = time.time()
     delay = 5
     wait_time = 0
     all_jobs_done = False
+    i = 0
+    default_total = 1
+    current_stage = None
     while not all_jobs_done:
       wait_time += delay
-      if wait_time > 300:  # If 5 minutes passed, then spawn BQWaiter.
-        worker_params = {
-            'job_names': [job.name for job in jobs],
-            'bq_project_id': self._params['bq_project_id']
-        }
-        self._enqueue('BQWaiter', worker_params, 60)
-        return
-      time.sleep(delay)
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][wait_time / 60]
-      all_jobs_done = True
       for job in jobs:
         job.reload()
         if job.error_result is not None:
           raise WorkerException(job.error_result['message'])
-        if job.state != 'DONE':
-          all_jobs_done = False
+        if job.state == 'DONE':
+          all_jobs_done = True
           break
-
-
+        if job.query_plan:
+          default_total = len(job.query_plan)
+          current_stage = job.query_plan[i]
+        if current_stage:
+          if current_stage.status == 'COMPLETE':
+            if i < default_total - 1:
+              i += 1
+        if wait_time > 60:  # If 1 minute passed, then indicate progress.
+          if job.query_plan:
+            self.log_info(
+              "Query executing stage {} and status {} : {:0.2f}s".format(
+                current_stage.name, current_stage.status, time.time() - start_time))
+          else:
+            self.log_info(
+              "Query executing : {:0.2f}s".format(time.time() - start_time))
+      time.sleep(delay)
+      if delay < 30:
+        delay = [5, 10, 15, 20, 30][wait_time / 60]
+        
+        
 class BQWaiter(BQWorker):
   """Worker that checks BQ job status and respawns itself if job is running."""
 
