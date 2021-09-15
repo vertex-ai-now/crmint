@@ -1254,6 +1254,14 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
             'Failed to send event with status code (%s) and parameters: %s'
             % (response.status_code, payload))
 
+  def _calculate_hits_sent(self, iters, rows):
+    """Calculates the proportion of measurement protocol hits completed."""
+    if not rows:
+      return 0
+    hits_sent = float(self._params['mp_batch_size']) * float(iters)
+    percent_complete = hits_sent / float(rows)
+    return int(percent_complete * 100)
+          
   def _process_query_results(self, query_data, query_schema, total_rows):
     """Sends event hits from query data."""
     fields = [f.name.encode('utf-8') for f in query_schema]
@@ -1271,8 +1279,8 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
         self._send_payload_list(payload_list)
         payload_list = []
         i += 1
-        completed = int(((int(self._params['mp_batch_size']) * i) / total_rows) * 100)
-        if completed % 5 == 0 and completed not in logs:
+        completed = self._calculate_hits_sent(i, total_rows)
+        if completed % 10 == 0 and completed not in logs:
           self.log_info(
             'Completed {}%% of the measurement protocol hits'.format(completed))
           logs.append(completed)
@@ -1292,9 +1300,9 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
         self._table,
         page_token=page_token,
         selected_fields=table.schema[:])
-    total_rows = len(query_iterator)
-    query_first_page = next(query_iterator.pages)
-    self._process_query_results(query_first_page, table.schema, total_rows)
+    rows = list(query_iterator)
+    total_rows = len(rows)
+    self._process_query_results(rows, table.schema, total_rows)
 
 
 class BQToMeasurementProtocol(BQWorker):
@@ -1438,6 +1446,15 @@ class BQToMeasurementProtocolProcessor(BQWorker):
       escaped_message = e.message.replace('%', '%%')
       self.log_error(escaped_message)
 
+  def _calculate_hits_sent(self, iters, rows):
+    """Calculates the proportion of measurement protocol hits completed."""
+    if not rows:
+      return 0
+    hits_sent = float(self._params['mp_batch_size']) * float(iters)
+    percent_complete = hits_sent / float(rows)
+    return int(percent_complete * 100)
+      
+  
   def _process_query_results(self, query_data, query_schema, total_rows):
     """Sends event hits from query data."""
     fields = [f.name for f in query_schema]
@@ -1452,7 +1469,7 @@ class BQToMeasurementProtocolProcessor(BQWorker):
         self._send_payload_list(payload_list)
         payload_list = []
         i += 1
-        completed = int(((int(self._params['mp_batch_size']) * i) / total_rows) * 100)
+        completed = self._calculate_hits_sent(i, total_rows)
         if completed % 5 == 0 and completed not in logs:
           self.log_info(
             'Completed {}%% of the measurement protocol hits'.format(completed))
@@ -1473,9 +1490,9 @@ class BQToMeasurementProtocolProcessor(BQWorker):
         self._table,
         page_token=page_token,
         selected_fields=table.schema[:])
-    total_rows = len(query_iterator)
-    query_first_page = next(query_iterator.pages)
-    self._process_query_results(query_first_page, table.schema, total_rows)
+    rows = list(query_iterator)
+    total_rows = len(rows)
+    self._process_query_results(rows, table.schema, total_rows)
 
 
 class BQMLTrainer(BQWorker):
