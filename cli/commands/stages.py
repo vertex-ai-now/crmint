@@ -100,8 +100,8 @@ def _default_stage_context(stage_name):
   return dict(
       service_account_file="{}.json".format(stage_name),
       project_id_gae=stage_name,
-      project_region="us-west1",
-      project_sql_region="us-west1",
+      project_region="europe-west",
+      project_sql_region="europe-west1",
       project_sql_tier="db-g1-small",
       workdir="/tmp/{}".format(stage_name),
       db_name="crmintapp",
