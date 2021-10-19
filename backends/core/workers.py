@@ -1293,6 +1293,8 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
   def _execute(self):
     self._bq_setup()
     self._debug = self._params['debug']
+    self._measurement_id = self._params['measurement_id']
+    self._api_secret = self._params['api_secret']
     page_token = self._params['bq_page_token'] or None
     batch_size = self._params['bq_batch_size']
     table = self._client.get_table(self._table)
