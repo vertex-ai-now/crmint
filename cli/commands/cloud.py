@@ -226,7 +226,8 @@ def activate_services(stage, debug=False):
     storage-component.googleapis.com \
     sqladmin.googleapis.com \
     cloudscheduler.googleapis.com \
-    cloudbuild.googleapis.com".format(
+    cloudbuild.googleapis.com \
+    appengine.googleapis.com".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae)
   shared.execute_command("Activate services", command, debug=debug)
