@@ -108,8 +108,8 @@ def grant_cloud_build_permissions(stage, debug=False):
 def _check_if_mysql_instance_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} sql instances list \
-    --project={project_id} 2>/dev/null \
-    | egrep -q \"^{db_instance_name}\s\"".format(
+    --project={project_id} \
+    | egrep -c \"^{db_instance_name}\s\"".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae,
       db_instance_name=stage.db_instance_name)
@@ -117,7 +117,7 @@ def _check_if_mysql_instance_exists(stage, debug=False):
       command,
       report_empty_err=False,
       debug=debug)
-  return status == 0
+  return status == 1
 
 
 def create_mysql_instance_if_needed(stage, debug=False):
@@ -144,8 +144,8 @@ def _check_if_mysql_user_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} sql users list \
     --project={project_id} \
-    --instance={db_instance_name} 2>/dev/null \
-    | egrep -q \"^{db_username}\s\"".format(
+    --instance={db_instance_name} \
+    | egrep -c \"^{db_username}\s\"".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae,
       db_instance_name=stage.db_instance_name,
@@ -154,7 +154,7 @@ def _check_if_mysql_user_exists(stage, debug=False):
       command,
       report_empty_err=False,
       debug=debug)
-  return status == 0
+  return status == 1
 
 
 def create_mysql_user_if_needed(stage, debug=False):
@@ -184,8 +184,8 @@ def _check_if_mysql_database_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} sql databases list \
     --project={project_id} \
-    --instance={db_instance_name} 2>/dev/null \
-    | egrep -q \"^{db_name}\s\"".format(
+    --instance={db_instance_name} \
+    | egrep -c \"^{db_name}\s\"".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae,
       db_instance_name=stage.db_instance_name,
@@ -194,7 +194,7 @@ def _check_if_mysql_database_exists(stage, debug=False):
       command,
       report_empty_err=False,
       debug=debug)
-  return status == 0
+  return status == 1
 
 
 def create_mysql_database_if_needed(stage, debug=False):
