@@ -107,8 +107,8 @@ def grant_cloud_build_permissions(stage, debug=False):
 
 def _check_if_mysql_instance_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql instances list \
-    --project={project_id} \
+  command = "{gcloud_bin} sql describe --verbosity critical \
+    --project={project_id} {db_instance_name} \
     | grep -q '{db_instance_name}'".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae,
