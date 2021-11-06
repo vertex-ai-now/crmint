@@ -86,6 +86,28 @@ def create_service_account_key_if_needed(stage, debug=False):
       service_account_file=service_account_file)
   shared.execute_command("Create the service account key", command, debug=debug)
 
+
+def confirm_authorized_user_owner_role(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  auth_list_command = "{gcloud_bin} auth list \
+    --format=\"value(account)\"".format(
+    gcloud_bin=gcloud_command)
+  status, out, err = shared.execute_command(
+    "Getting authorized user", auth_list_command, debug=debug)
+  command = "{gcloud_bin} projects get-iam-policy {project_id} \
+    --flatten=\"bindings[].members\" \
+    --format=\"table(bindings.role)\" \
+    --filter=\"bindings.members:{auth_user}\" \
+    | grep -q 'roles/owner'".format(
+      gcloud_bin=gcloud_command,
+      auth_user=out.strip(),
+      project_id=stage.project_id_gae)
+  status, out, err = shared.execute_command("Check if authorized user is owner",
+      command,
+      report_empty_err=False,
+      debug=debug)
+  return status == 0
+  
   
 def grant_cloud_build_permissions(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
@@ -549,8 +571,15 @@ def setup(stage_name, debug):
       create_mysql_database_if_needed,
       download_config_files,
   ]
-  for component in components:
-    component(stage, debug=debug)
+  if confirm_authorized_user_owner_role(stage, debug=debug):
+    click.echo("     Authorized user confirmed as owner.")
+    for component in components:
+      component(stage, debug=debug)
+  else:
+    click.echo(click.style("""     This user doesn't have the owner role. 
+     Only owners can deploy this application.
+     Exiting setup.""", fg='red', bold=True))
+    exit(1)
   click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
