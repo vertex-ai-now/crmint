@@ -107,6 +107,12 @@ def confirm_authorized_user_owner_role(stage, debug=False):
       report_empty_err=False,
       debug=debug)
   return status == 0
+
+
+def downgrade_app_engine_python(stage, debug=False):
+  # https://issuetracker.google.com/202171426
+  command = "sudo apt-get -y install google-cloud-sdk-app-engine-python=359.0.0-0 --allow-downgrades"
+  shared.execute_command("Downgrade app-engine-python", command, debug=debug)
   
   
 def grant_cloud_build_permissions(stage, debug=False):
@@ -562,6 +568,7 @@ def setup(stage_name, debug):
 
   # Runs setup steps.
   components = [
+      downgrade_app_engine_python,
       activate_services,
       create_appengine,
       create_service_account_key_if_needed,
