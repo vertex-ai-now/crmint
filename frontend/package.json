@@ -32,6 +32,7 @@
     "ng-click-outside": "^6.0.0",
     "ng2-ace-editor": "0.3.4",
     "ngx-clipboard": "^13.0.0",
+    "ngx-window-token": "^5.0.0",
     "prettycron": "0.10.0",
     "rxjs": "~6.5.4",
     "tslib": "^1.10.0",
