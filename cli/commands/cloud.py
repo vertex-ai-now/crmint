@@ -364,7 +364,9 @@ def deploy_frontend(stage, debug=False):
   commands = [
       "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
-      "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1",
+      "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
+          gcloud_bin=gcloud_command,
+          project_id=stage.project_id_gae),
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
