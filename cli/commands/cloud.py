@@ -594,10 +594,8 @@ def setup(stage_name, debug):
 
 def _setup(stage_name, debug):
   """Setup the GCP environment for deploying CRMint."""
-  click.echo(click.style(">>>> Setup", fg='magenta', bold=True))
-
-  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  if stage is None:
+  if stage_name is None:
+    click.echo(click.style("Fix that issue by running: $ crmint stages create", fg='green'))
     exit(1)
 
   # Enriches stage with other variables.
@@ -673,10 +671,7 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
 
 def _deploy(stage_name, debug):
   """Deploy CRMint on GCP."""
-  click.echo(click.style(">>>> Deploy", fg='magenta', bold=True))
-
-  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  if stage is None:
+  if stage_name is None:
     click.echo(click.style("Fix that issue by running: $ crmint cloud setup", fg='green'))
     exit(1)
 
