@@ -742,7 +742,7 @@ def reset(stage_name, debug):
 @click.option('--debug/--no-debug', default=False)
 def begin(stage_name, debug):
   """Combined steps to deploy CRMint."""
-  click.echo(click.style(">>>> Deploying CRMint", fg='magenta', bold=True))
+  click.echo(click.style(">>>> Starting", fg='magenta', bold=True))
 
   stages._create(stage_name)
   _setup(stage_name, debug)
