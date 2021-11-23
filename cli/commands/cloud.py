@@ -20,6 +20,7 @@ from io import StringIO
 
 import click
 
+from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
 
@@ -363,6 +364,7 @@ def deploy_frontend(stage, debug=False):
   commands = [
       "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
+      "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1",
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
@@ -590,6 +592,41 @@ def setup(stage_name, debug):
   click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
+def _setup(stage_name, debug):
+  """Setup the GCP environment for deploying CRMint."""
+  click.echo(click.style(">>>> Setup", fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
+  if stage is None:
+    exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs setup steps.
+  components = [
+      downgrade_app_engine_python,
+      activate_services,
+      create_appengine,
+      create_service_account_key_if_needed,
+      grant_cloud_build_permissions,
+      create_mysql_instance_if_needed,
+      create_mysql_user_if_needed,
+      create_mysql_database_if_needed,
+      download_config_files,
+  ]
+  if confirm_authorized_user_owner_role(stage, debug=debug):
+    click.echo("     Authorized user confirmed as owner.")
+    for component in components:
+      component(stage, debug=debug)
+  else:
+    click.echo(click.style("""     This user doesn't have the owner role. 
+     Only owners can deploy this application.
+     Exiting setup.""", fg='red', bold=True))
+    exit(1)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
+
+
 @cli.command('deploy')
 @click.option('--stage_name', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
@@ -634,6 +671,40 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
   click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
+def _deploy(stage_name, debug):
+  """Deploy CRMint on GCP."""
+  click.echo(click.style(">>>> Deploy", fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
+  if stage is None:
+    click.echo(click.style("Fix that issue by running: $ crmint cloud setup", fg='green'))
+    exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs deploy steps.
+  components = [
+      install_required_packages,
+      display_workdir,
+      copy_src_to_workdir,
+      install_backends_dependencies,
+      deploy_frontend,
+      deploy_backends,
+      deploy_dispatch_rules,
+      download_cloud_sql_proxy,
+      start_cloud_sql_proxy,
+      prepare_flask_envars,
+      run_flask_db_upgrade,
+      run_flask_db_seeds,
+      stop_cloud_sql_proxy,
+  ]
+
+  for component in components:
+    component(stage, debug=debug)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
+
+
 @cli.command('reset')
 @click.option('--stage_name', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
@@ -664,6 +735,18 @@ def reset(stage_name, debug):
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style("Done.", fg='magenta', bold=True))
+
+
+@cli.command('begin')
+@click.option('--stage_name', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def begin(stage_name, debug):
+  """Combined steps to deploy CRMint."""
+  click.echo(click.style(">>>> Deploying CRMint", fg='magenta', bold=True))
+
+  stages._create(stage_name)
+  _setup(stage_name, debug)
+  _deploy(stage_name, debug)
 
 
 if __name__ == '__main__':
