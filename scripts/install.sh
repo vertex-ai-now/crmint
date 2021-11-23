@@ -57,3 +57,5 @@ cd "$CURRENT_DIR"
 
 echo "Reloading the shell"
 exec bash
+
+crmint cloud begin
