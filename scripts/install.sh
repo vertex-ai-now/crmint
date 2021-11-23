@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGET_BRANCH=$1
 CURRENT_DIR=$(pwd)
 
 # Downloads the source code.
@@ -25,7 +24,7 @@ fi
 cd $HOME/crmint
 
 # Updates the targeted branch.
-git checkout $TARGET_BRANCH
+git checkout instant-bqml
 git pull --quiet --rebase
 
 # Installs the command-line.
@@ -55,5 +54,4 @@ EOF
 # Restores initial directory.
 cd "$CURRENT_DIR"
 
-echo "Reloading the shell"
-exec bash
+crmint cloud begin

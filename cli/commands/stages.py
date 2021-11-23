@@ -205,6 +205,20 @@ def create(stage_name):
   click.echo(click.style("Stage file created: %s" % filepath, fg='green'))
 
 
+def _create(stage_name):
+  """Create new stage file"""
+  if not stage_name:
+    stage_name = shared.get_default_stage_name()
+
+  if shared.check_stage_file(stage_name):
+    click.echo(click.style("This stage name already exists. You can list "
+                           "them all with: `$ crmint stages list`", fg='red', bold=True))
+    pass
+
+  filepath = _create_stage_file(stage_name)
+  click.echo(click.style("Stage file created: %s" % filepath, fg='green'))
+  
+
 def _ignore_stage_file(file_name):
   IGNORED_STAGE_FILES = ["__init__.py"]
   ENDS_WITH = [".pyc", ".example"]
