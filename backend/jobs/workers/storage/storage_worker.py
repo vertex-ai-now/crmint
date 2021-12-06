@@ -24,13 +24,13 @@ class StorageWorker:  # pylint: disable=too-few-public-methods
 
   _client = None
 
-  def _get_client(self):
+  def _get_storage_client(self):
     if self._client is None:
       self._client = storage.Client()
     return self._client
 
   def _get_matching_blobs(self, patterned_uris):
-    client = self._get_client()
+    client = self._get_storage_client()
     blobs = []
     blob_name_patterns = {}
     for patterned_uri in patterned_uris:
@@ -51,3 +51,35 @@ class StorageWorker:  # pylint: disable=too-few-public-methods
             blobs.append(blob)
             break
     return blobs
+
+  def _get_matching_stats(self, patterned_uris):
+    client = self._get_storage_client()
+    stats = []
+    patterns = {}
+    for patterned_uri in patterned_uris:
+      patterned_uri_split = patterned_uri.split('/')
+      bucket = '/'.join(patterned_uri_split[1:3])
+      pattern = '/'.join(patterned_uri_split[1:])
+      try:
+        if pattern not in patterns[bucket]:
+          patterns[bucket].append(pattern)
+      except KeyError:
+        patterns[bucket] = [pattern]
+    for bucket in patterns:
+      for stat in client.list_blobs(bucket):
+        for pattern in patterns[bucket]:
+          if fnmatch(stat.name, pattern):
+            stats.append(stat)
+            break
+    return stats
+
+  def _delete_file(self, bucket_name, blob_name):
+    client = self._get_storage_client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    blob.delete()
+
+  def _get_uri_parts(self, uri):
+    bucket = uri.split('/')[1]
+    blob = uri.split('/')[2]
+    return bucket, blob
