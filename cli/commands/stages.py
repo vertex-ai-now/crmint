@@ -48,6 +48,9 @@ STAGE_FILE_TEMPLATE = """
 # Variables for stage
 ###
 
+# Service account json file
+service_account_file = "{service_account_file}"
+
 # Project ID in Google Cloud
 project_id_gae = "{project_id_gae}"
 
@@ -126,6 +129,7 @@ def _default_stage_context(stage_name):
       string.ascii_lowercase + string.digits) for _ in range(32))
   region, sql_region = _get_regions(stage_name)
   return dict(
+      service_account_file=f'{stage_name}.json',
       project_id_gae=stage_name,
       project_region=region,
       project_sql_region=sql_region,
