@@ -341,7 +341,10 @@ def activate_services(stage, debug=False):
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
-  cmd = f'cloudshell download-files "{stage_file_path}"'
+  service_account_file_path = shared.get_service_account_file(stage)
+  cmd = (
+      f'cloudshell download-files "{stage_file_path}"'
+      f' "{service_account_file_path}"')
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
@@ -381,6 +384,8 @@ def copy_src_to_workdir(stage, debug=False):
   )
   copy_insight_config_cmd = (
       f' cp backend/data/insight.json {workdir}/backend/data/insight.json')
+  copy_service_account_cmd = (
+      f' cp backend/data/{service_account_filename} {workdir}/backend/data/service-account.json')
   # copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
   #     workdir=stage.workdir,
   #     cloud_db_uri=stage.cloud_db_uri)
@@ -405,6 +410,7 @@ def copy_src_to_workdir(stage, debug=False):
   cmds = [
       copy_src_cmd,
       copy_insight_config_cmd,
+      copy_service_account_cmd,
       copy_app_data,
       copy_prod_env,
   ]
