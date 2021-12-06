@@ -81,6 +81,24 @@ def create_appengine(stage, debug=False):
   shared.execute_command('Create App Engine instance', cmd, debug=debug)
 
 
+def grant_cloud_build_permissions(stage, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+    f'{GCLOUD} projects list '
+    f' --filter="{project_id}" '
+    f' --format="value(PROJECT_NUMBER)"'
+  )
+  _, out, _ = shared.execute_command(
+    "Getting the project number", cmd, debug=debug)
+  project_number = out.strip()
+  cmd = (
+    f'{GCLOUD} projects add-iam-policy-binding {project_id}'
+    f' --member="serviceAccount:{project_number}@cloudbuild.gserviceaccount.com"'
+    f' --role="roles/storage.objectViewer"'
+  )
+  shared.execute_command("Grant Cloud Build permissions", cmd, debug=debug)
+
+
 def _check_if_cloudsql_instance_exists(stage, debug=False):
   project_id = stage.project_id_gae
   db_instance_name = stage.db_instance_name
@@ -292,8 +310,10 @@ def activate_services(stage, debug=False):
       f' {GCLOUD} services enable --project={project_id}'
       f' analytics.googleapis.com'
       f' analyticsreporting.googleapis.com'
+      f' appengine.googleapis.com'
       f' bigquery-json.googleapis.com'
       f' cloudapis.googleapis.com'
+      f' cloudbuild.googleapis.com'
       f' logging.googleapis.com'
       f' pubsub.googleapis.com'
       f' storage-api.googleapis.com'
@@ -566,6 +586,7 @@ def setup(stage_name, debug):
   components = [
       create_appengine,
       activate_services,
+      grant_cloud_build_permissions,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
       create_cloudsql_database_if_needed,
