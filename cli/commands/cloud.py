@@ -370,6 +370,7 @@ def display_workdir(stage, debug=False):
 def copy_src_to_workdir(stage, debug=False):
   workdir = stage.workdir
   app_title = stage.app_title
+  service_account_filename = stage.service_account_file
   notification_sender_email = stage.notification_sender_email
   enabled_stages = 'true' if stage.enabled_stages else 'false'
   copy_src_cmd = (
