@@ -26,6 +26,7 @@ class BQQueryLauncher(BQScriptExecutor):  # pylint: disable=too-few-public-metho
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('overwrite', 'boolean', True, False, 'Overwrite table'),
   ]
 
@@ -34,4 +35,4 @@ class BQQueryLauncher(BQScriptExecutor):  # pylint: disable=too-few-public-metho
     table = self._get_full_table_name()
     query = self._params['query'].strip()
     script = f'CREATE {or_replace} TABLE {table} AS {query}'
-    self._execute_sql_script(script)
+    self._execute_sql_script(script, self._params['bq_dataset_location'])
