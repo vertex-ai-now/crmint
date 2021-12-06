@@ -98,6 +98,21 @@ def grant_cloud_build_permissions(stage, debug=False):
   )
   shared.execute_command("Grant Cloud Build permissions", cmd, debug=debug)
 
+    
+def create_service_account_key_if_needed(stage, debug=False):
+  if shared.check_service_account_file(stage):
+    click.echo('     Service account key already exists.')
+    return
+
+  service_account_file = shared.get_service_account_file(stage)
+  project_id = stage.project_id_gae
+  cmd = (
+      f'{GCLOUD} iam service-accounts keys create "{service_account_file}"'
+      f' --iam-account="{project_id}@appspot.gserviceaccount.com"'
+      f' --key-file-type="json"'
+      f' --project={project_id}')
+  shared.execute_command("Create the service account key", cmd, debug=debug)
+
 
 def _check_if_cloudsql_instance_exists(stage, debug=False):
   project_id = stage.project_id_gae
@@ -584,8 +599,9 @@ def setup(stage_name, debug):
 
   # Runs setup steps.
   components = [
-      create_appengine,
       activate_services,
+      create_appengine,
+      create_service_account_key_if_needed,
       grant_cloud_build_permissions,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
