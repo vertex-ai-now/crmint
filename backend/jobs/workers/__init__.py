@@ -30,14 +30,14 @@ EXPOSED = (
     # 'BQToMeasurementProtocol',
     'BQToStorageExporter',
     'Commenter',
-    # 'GAAudiencesUpdater',
-    # 'GADataImporter',
+    'GAAudiencesUpdater',
+    'GADataImporter',
     # 'GAToBQImporter',
     # 'MLPredictor',
     # 'MLTrainer',
     # 'MLVersionDeployer',
     # 'StorageChecker',
-    # 'StorageCleaner',
+    'StorageCleaner',
     'StorageToBQImporter',
 )
 
