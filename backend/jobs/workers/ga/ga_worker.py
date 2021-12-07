@@ -16,7 +16,6 @@
 import os
 from apiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
-from cli.utils import constants
 from jobs.workers.worker import Worker, WorkerException
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
