@@ -14,8 +14,12 @@
 
 """Module with CRMint's base Worker and WorkerException classes."""
 
-
 import json
+import time
+
+from functools import wraps
+from googleapiclient.errors import HttpError
+from random import random
 from common import crmint_logging
 from google.api_core.retry import Retry
 
@@ -91,3 +95,28 @@ class Worker:
 
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))
+
+  def retry(self, func, max_retries=_DEFAULT_MAX_RETRIES):
+    """Decorator implementing retries with exponentially increasing delays."""
+    @wraps(func)
+    def func_with_retries(*args, **kwargs):
+      """Retriable version of function being decorated."""
+      tries = 0
+      while tries < max_retries:
+        try:
+          return func(*args, **kwargs)
+        except HttpError as e:
+          # If it is a client side error, then there's no reason to retry.
+          if e.resp.status > 399 and e.resp.status < 500:
+            raise e
+        except HttpError as e:
+          # If it is a client side error, then there's no reason to retry.
+          if e.code > 399 and e.code < 500:
+            raise e
+        except Exception as e:  # pylint: disable=broad-except
+          pass
+        tries += 1
+        delay = 5 * 2 ** (tries + random())
+        time.sleep(delay)
+      return func(*args, **kwargs)
+    return func_with_retries
