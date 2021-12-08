@@ -17,9 +17,10 @@
 
 from fnmatch import fnmatch
 from google.cloud import storage
+from jobs.workers.worker import Worker, WorkerException
 
 
-class StorageWorker:  # pylint: disable=too-few-public-methods
+class StorageWorker(Worker):  # pylint: disable=too-few-public-methods
   """Abstract worker class for Cloud Storage workers."""
 
   _client = None
@@ -58,8 +59,8 @@ class StorageWorker:  # pylint: disable=too-few-public-methods
     patterns = {}
     for patterned_uri in patterned_uris:
       patterned_uri_split = patterned_uri.split('/')
-      bucket = '/'.join(patterned_uri_split[1:3])
-      pattern = '/'.join(patterned_uri_split[1:])
+      bucket = '/'.join(patterned_uri_split[2:3])
+      pattern = '/'.join(patterned_uri_split[2:])
       try:
         if pattern not in patterns[bucket]:
           patterns[bucket].append(pattern)
@@ -68,7 +69,7 @@ class StorageWorker:  # pylint: disable=too-few-public-methods
     for bucket in patterns:
       for stat in client.list_blobs(bucket):
         for pattern in patterns[bucket]:
-          if fnmatch(stat.name, pattern):
+          if fnmatch(f'{bucket}/{stat.name}', pattern):
             stats.append(stat)
             break
     return stats
@@ -80,6 +81,6 @@ class StorageWorker:  # pylint: disable=too-few-public-methods
     blob.delete()
 
   def _get_uri_parts(self, uri):
-    bucket = uri.split('/')[1]
-    blob = uri.split('/')[2]
+    bucket = uri.split('/')[2]
+    blob = uri.split('/')[3]
     return bucket, blob
