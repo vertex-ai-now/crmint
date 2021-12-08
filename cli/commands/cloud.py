@@ -386,7 +386,7 @@ def copy_src_to_workdir(stage, debug=False):
   copy_insight_config_cmd = (
       f' cp backend/data/insight.json {workdir}/backend/data/insight.json')
   copy_service_account_cmd = (
-      f' cp backend/data/{service_account_filename} {workdir}/backend/data/service-account.json')
+      f' cp backend/data/{service_account_filename} {workdir}/backend/jobs/workers/ga/service-account.json')
   # copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
   #     workdir=stage.workdir,
   #     cloud_db_uri=stage.cloud_db_uri)
