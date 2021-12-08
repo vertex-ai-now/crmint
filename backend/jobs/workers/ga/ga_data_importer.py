@@ -14,7 +14,8 @@
 
 from random import random
 import time
-from apiclient.http import MediaIoBaseUpload
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseUpload
 from jobs.workers.worker import Worker, WorkerException
 from jobs.workers.ga.ga_worker import GAWorker
 from jobs.workers.storage.storage_worker import StorageWorker
@@ -43,8 +44,8 @@ class GADataImporter(GAWorker, StorageWorker):
     storage_client = self._get_storage_client()
     bucket_name, blob_name = self._get_uri_parts(self._params['csv_uri'])
     bucket = storage_client.bucket(bucket_name)
-    blob = bucket.get_blob(blob_name)
-    with blob.open('rb', chunk_size=self._BUFFER_SIZE) as f:
+    source_blob = bucket.get_blob(blob_name)
+    with source_blob.open('rb', chunk_size=self._BUFFER_SIZE) as f:
       media = MediaIoBaseUpload(f, mimetype='application/octet-stream',
                                 chunksize=self._BUFFER_SIZE, resumable=True)
       request = self._ga_client.management().uploads().uploadData(
@@ -101,7 +102,6 @@ class GADataImporter(GAWorker, StorageWorker):
       self._account_id = self._params['account_id']
     else:
       self._account_id = self._parse_accountid_from_propertyid()
-    self._file_name = self._params['csv_uri'].replace('gs:/', '')
     if self._params['max_uploads'] > 0 and self._params['delete_before']:
       self._delete_older(self._params['max_uploads'] - 1)
     self._upload()
