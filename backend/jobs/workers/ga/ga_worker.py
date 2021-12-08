@@ -21,11 +21,10 @@ from jobs.workers.worker import Worker, WorkerException
 
 class GAWorker(Worker):
   """Abstract class with GA-specific methods."""
-  
-  _KEY_FILE = os.path.join(
-    os.path.dirname(__file__), 'service-account.json')
 
   def _ga_setup(self, v='v4'):
+    _KEY_FILE = os.path.join(
+      os.path.dirname(__file__), 'service-account.json')
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
       _KEY_FILE)
     service = 'analyticsreporting' if v == 'v4' else 'analytics'
