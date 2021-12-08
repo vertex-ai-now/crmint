@@ -35,6 +35,7 @@ class StorageCleaner(StorageWorker):
     expiration_timestamp = time.mktime(expiration_datetime.timetuple())
     stats = self._get_matching_stats(self._params['file_uris'])
     for stat in stats:
-      if stat.updated < expiration_timestamp:
+      last_updated_timestamp = time.mktime(stat.updated.timetuple())
+      if last_updated_timestamp < expiration_timestamp:
         self._delete_file(stat.bucket.name, stat.name)
         self.log_info('gs:/%s file deleted.', stat.name)
