@@ -79,7 +79,7 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
     """
     dicts = [(patch, audience)]
     for d1, d2 in dicts:
-      keys = d1 if isinstance(d1, dict) else xrange(len(d1))
+      keys = d1 if isinstance(d1, dict) else range(len(d1))
       for k in keys:
         try:
           d2[k]
