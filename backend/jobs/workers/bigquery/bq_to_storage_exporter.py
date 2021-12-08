@@ -26,6 +26,7 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('destination_uri', 'string', True, '',
        'Destination CSV or JSON file URI (e.g. gs://bucket/data.csv)'),
       ('print_header', 'boolean', True, False, 'Include a header row'),
@@ -48,5 +49,6 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
         self._get_full_table_name(),
         self._params['destination_uri'],
         job_id_prefix=self._get_prefix(),
-        job_config=job_config)
+        job_config=job_config,
+        location=self._params['bq_dataset_location'])
     self._wait(job)
