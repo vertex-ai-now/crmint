@@ -27,7 +27,7 @@ EXPOSED = (
     'BQScriptExecutor',
     # 'BQToAppConversionAPI',
     # 'BQToCM',
-    # 'BQToMeasurementProtocol',
+    'BQToMeasurementProtocolGA4',
     'BQToStorageExporter',
     'Commenter',
     'GAAudiencesUpdater',
