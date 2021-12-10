@@ -323,6 +323,7 @@ def activate_services(stage, debug=False):
   project_id = stage.project_id_gae
   cmd = (
       f' {GCLOUD} services enable --project={project_id}'
+      f' aiplatform.googleapis.com'
       f' analytics.googleapis.com'
       f' analyticsreporting.googleapis.com'
       f' appengine.googleapis.com'
