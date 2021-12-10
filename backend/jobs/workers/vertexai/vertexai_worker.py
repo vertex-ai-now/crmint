@@ -16,7 +16,7 @@ from google.cloud import aiplatform
 from jobs.workers.worker import Worker, WorkerException
 
 
-class VertexAIWorker:
+class VertexAIWorker(Worker):
   
   PARAMS = [
       ('bq_project_id', 'string', True, '', 'BQ Project ID'),
