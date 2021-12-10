@@ -18,19 +18,12 @@ from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
 
 class BQToVertexAIDatasetCreator(VertexAIWorker):
   
-  PARAMS = [
-      ('bq_project_id', 'string', True, '', 'BQ Project ID'),
-      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
-      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-  ]
-  
   def _execute(self):
     project_id = self._params['bq_project_id']
     dataset_id = self._params['bq_dataset_id']
     table_id = self._params['bq_table_id']
-    aiplatform.TabularDataset.create(
+    dataset = aiplatform.TabularDataset.create(
       display_name=f'{project_id}.{dataset_id}.{table_id}', 
       bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
-    self.log_info(
-      f'Created Vertex AI tabular dataset from BigQuery named'
-      f' {project_id}.{dataset_id}.{table_id}')
+    dataset.wait()
+    self.log_info(f'Dataset created: {dataset.resource_name}')
