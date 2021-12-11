@@ -14,7 +14,7 @@
 
 from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
 
-class VertexAITabularTrainer(VertexAIWorker):
+class VertexAITrainer(VertexAIWorker):
   
   PARAMS = [
       ('vertexai_dataset_name', 'string', True, '', 'Vertex AI Dataset Name'),
