@@ -15,6 +15,7 @@
 from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
 
 class VertexAITrainer(VertexAIWorker):
+  """Worker to train a Vertex AI AutoML model using a Vertex dataset."""
   
   PARAMS = [
       ('vertexai_dataset_name', 'string', True, '', 'Vertex AI Dataset Name'),
