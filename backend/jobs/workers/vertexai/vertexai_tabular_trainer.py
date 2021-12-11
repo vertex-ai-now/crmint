@@ -56,7 +56,7 @@ class VertexAITabularTrainer(VertexAIWorker):
     model = job.run(
       dataset = dataset,
       target_column = f'{target_column}',
-      budget_milli_node_hours = f'{budget_hours} * 1000',
+      budget_milli_node_hours = f'{budget_hours * 1000}',
       model_display_name = {vertexai_model_name},
       disable_early_stopping = False,
     )
