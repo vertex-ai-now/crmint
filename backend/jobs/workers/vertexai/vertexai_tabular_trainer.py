@@ -32,7 +32,7 @@ class VertexAITabularTrainer(VertexAIWorker):
       dataset = aiplatform.TabularDataset.list(
         filter = f'display_name="{display_name}"',
         order_by = "create_time desc")
-    for ds in dataset
+    for ds in dataset:
       return ds
     return None
 
@@ -49,6 +49,9 @@ class VertexAITabularTrainer(VertexAIWorker):
     target_column = self._params['target_column']
     vertexai_model_name = self._params['vertexai_model_name']
     dataset = _get_vertex_dataset(self)
+    if not dataset:
+      self.log_info('No Vertex AI dataset found. Try again.')
+      return
     job = _create_automl_tabular_training_job(self)
     model = job.run(
       dataset = dataset,
