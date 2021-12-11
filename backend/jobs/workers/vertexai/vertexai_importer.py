@@ -12,18 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
+from google.cloud import aiplatform
+from jobs.workers.worker import Worker, WorkerException
 
-
-class VertexAIImporter(VertexAIWorker):
+class VertexAIImporter(Worker):
   """Worker to export a BigQuery table to a Vertex AI dataset."""
-  
+
+  PARAMS = [
+      ('bq_project_id', 'string', True, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
+  ]
+
   def _execute(self):
+    aiplatform.init(
+      project=self._params['bq_project_id'],
+      location=self._params['bq_dataset_location'])
     project_id = self._params['bq_project_id']
     dataset_id = self._params['bq_dataset_id']
     table_id = self._params['bq_table_id']
     dataset = aiplatform.TabularDataset.create(
-      display_name=f'{project_id}.{dataset_id}.{table_id}', 
+      display_name=f'{project_id}.{dataset_id}.{table_id}',
       bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
     dataset.wait()
     self.log_info(f'Dataset created: {dataset.resource_name}')
