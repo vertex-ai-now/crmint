@@ -12,20 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jobs.workers.vertexai.vertexai_worker import VertexAIWorker
+from google.cloud import aiplatform
+from jobs.workers.worker import Worker, WorkerException
 
-class VertexAITrainer(VertexAIWorker):
+class VertexAITrainer(Worker):
   """Worker to train a Vertex AI AutoML model using a Vertex dataset."""
-  
+
   PARAMS = [
+      ('project_id', 'string', True, '', 'GCP Project ID'),
+      ('dataset_location', 'string', True, '', 'BQ Data Location'),
       ('vertexai_dataset_name', 'string', True, '', 'Vertex AI Dataset Name'),
-      ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
       ('prediction_type', 'string', True, '', 'Prediction Type '
        '(regression or classification)'),
       ('target_column', 'string', True, '', 'Target Column'),
-      ('budget_hours', 'number', True, 1, 'Budget Hours (1 - 72)'),
+      ('budget_hours', 'number', True, 1, 'Training Budget Hours (1 thru 72)'),
+      ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
   ]
-  
+
   def _get_vertex_dataset(self):
     display_name = self._params['vertexai_dataset_name']
     dataset = aiplatform.TabularDataset.list(filter = f'display_name="{display_name}"')
@@ -46,19 +49,22 @@ class VertexAITrainer(VertexAIWorker):
     )
 
   def _execute(self):
+    aiplatform.init(
+      project=self._params['project_id'],
+      location=self._params['dataset_location'])
     budget_hours = self._params['budget_hours']
     target_column = self._params['target_column']
     vertexai_model_name = self._params['vertexai_model_name']
-    dataset = _get_vertex_dataset(self)
+    dataset = self._get_vertex_dataset()
     if not dataset:
       self.log_info('No Vertex AI dataset found. Try again.')
       return
-    job = _create_automl_tabular_training_job(self)
+    job = self._create_automl_tabular_training_job()
     model = job.run(
       dataset = dataset,
       target_column = f'{target_column}',
       budget_milli_node_hours = f'{budget_hours * 1000}',
-      model_display_name = {vertexai_model_name},
+      model_display_name = f'{vertexai_model_name}',
       disable_early_stopping = False,
     )
     model.wait()
