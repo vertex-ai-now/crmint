@@ -35,5 +35,5 @@ class VertexAIImporter(Worker):
     dataset = aiplatform.TabularDataset.create(
       display_name=f'{project_id}.{dataset_id}.{table_id}',
       bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
-    dataset.wait()
+    status = dataset.wait()
     self.log_info(f'Dataset created: {dataset.resource_name}')
