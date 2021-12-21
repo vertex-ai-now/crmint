@@ -23,16 +23,15 @@ from jobs.workers.worker import Worker, WorkerException
 class VertexAIWorker(Worker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
-  def _get_training_pipeline(self, project, training_pipeline_id, location):
+  def _get_vertexai_pipeline_client(self, location):
     api_endpoint = f'{location}-aiplatform.googleapis.com'
     client_options = {'api_endpoint': api_endpoint}
-    train_id = training_pipeline_id.split('/')[-1]
-    client = aip.PipelineServiceClient(client_options=client_options)
-    name = client.training_pipeline_path(
-      project=project, location=location, training_pipeline=train_id)
-    return client.get_training_pipeline(name=name)
+    return aip.PipelineServiceClient(client_options=client_options)
+  
+  def _get_training_pipeline(self, pipeline_client, pipeline_name):
+    return pipeline_client.get_training_pipeline(name=pipeline_name)
 
-  def _wait(self, pipeline):
+  def _wait_for_pipeline(self, pipeline):
     """Waits for pipeline completion and relays to VertexAIWaiter if it takes too long."""
     delay = 5
     waiting_time = 5
