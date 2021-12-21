@@ -40,7 +40,7 @@ EXPOSED = (
     'StorageCleaner',
     'StorageToBQImporter',
     'VertexAIImporter',
-    'VertexAITrainer',
+    'VertexAITabularTrainer',
 )
 
 
