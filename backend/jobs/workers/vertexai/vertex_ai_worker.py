@@ -16,22 +16,34 @@
 
 import time
 from google.cloud import aiplatform
+from google.cloud.aiplatform import gapic as aip
 from jobs.workers.worker import Worker, WorkerException
 
 
 class VertexAIWorker(Worker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
-  def _wait(self, job):
-    """Waits for job completion and relays to VertexAIWaiter if it takes too long."""
+  def _get_training_pipeline(self, project, training_pipeline_id, location):
+    api_endpoint = f'{location}-aiplatform.googleapis.com'
+    client_options = {'api_endpoint': api_endpoint}
+    train_id = training_pipeline_id.split('/')[-1]
+    client = aip.PipelineServiceClient(client_options=client_options)
+    name = client.training_pipeline_path(
+      project=project, location=location, training_pipeline=train_id)
+    return client.get_training_pipeline(name=name)
+
+  def _wait(self, pipeline):
+    """Waits for pipeline completion and relays to VertexAIWaiter if it takes too long."""
     delay = 5
     waiting_time = 5
     time.sleep(delay)
-    while job.wait_for_resource_creation() is None:
+    while pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
       if waiting_time > 300:  # Once 5 minutes have passed, spawn VertexAIWaiter.
-        self._enqueue('VertexAIWaiter', {'pipeline_id': job.resource_name}, 300)
+        self._enqueue('VertexAIWaiter', {'pipeline_id': pipeline.name}, 60)
         return
       if delay < 30:
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
       time.sleep(delay)
       waiting_time += delay
+    if pipeline.state == 'PIPELINE_STATE_FAILED':
+      raise WorkerException(f'Training pipeline {pipeline.name} failed.')
