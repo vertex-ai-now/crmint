@@ -29,6 +29,7 @@ EXPOSED = (
     # 'BQToCM',
     'BQToMeasurementProtocolGA4',
     'BQToStorageExporter',
+    'BQToVertexAIDataset',
     'Commenter',
     'GAAudiencesUpdater',
     'GADataImporter',
@@ -39,7 +40,6 @@ EXPOSED = (
     # 'StorageChecker',
     'StorageCleaner',
     'StorageToBQImporter',
-    'VertexAIImporter',
     'VertexAITabularTrainer',
 )
 
