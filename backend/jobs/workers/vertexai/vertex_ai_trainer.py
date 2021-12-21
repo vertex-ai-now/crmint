@@ -49,6 +49,15 @@ class VertexAITrainer(VertexAIWorker):
       optimization_prediction_type=f'{prediction_type}',
     )
 
+  def get_training_pipeline(self, project, training_pipeline_id, location):
+    api_endpoint = f'{location}-aiplatform.googleapis.com'
+    client_options = {"api_endpoint": api_endpoint}
+    client = aip.PipelineServiceClient(client_options=client_options)
+    name = client.training_pipeline_path(
+        project=project, location=location, training_pipeline=training_pipeline_id
+    )
+    return client.get_training_pipeline(name=name)
+
   def _execute_training(self):
     aiplatform.init()
     budget_hours = self._params['budget_hours']
@@ -67,7 +76,10 @@ class VertexAITrainer(VertexAIWorker):
       disable_early_stopping = False,
       sync = False,
     )
-    self._wait(job)
+    job.wait_for_resource_creation()
+    pipe = self._get_training_pipeline(
+      self._params['bq_project_id'], job.resource_name, self._params['bq_dataset_location'])
+    self._wait(pipe)
 
 
   def _execute(self):
