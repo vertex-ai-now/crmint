@@ -20,16 +20,15 @@ class VertexAIPredictor(Worker):
 
   PARAMS = [
       ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
-      ('vertexai_batch_prediction_name', 'string', True, '',
+      ('vertexai_batch_prediction_name', 'string', False, '',
        'Vertex AI Batch Prediction Name'),
+      ('location', 'string', True, '', 'Location'),
       ('bq_project_id', 'string', True, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
   ]
 
-  def _get_model(self):
-    display_name = self._params['vertexai_model_name']
+  def _get_model(self, display_name):
     models = aiplatform.Model.list(
       filter = f'display_name="{display_name}"',
       order_by = "create_time desc")
@@ -37,26 +36,34 @@ class VertexAIPredictor(Worker):
       return m
     return None
 
-  def _create_batch_prediction_job(self, model):
+  def _execute_batch_prediction(self):
+    aiplatform.init()
+    model = self._get_model(self._params['vertexai_model_name'])
+    if model is None:
+      self.log_info('No model found. Please try again.')
+      return
     project_id = self._params['bq_project_id']
     dataset_id = self._params['bq_dataset_id']
     table_id = self._params['bq_table_id']
     batch_prediction_name = self._params['vertexai_batch_prediction_name']
-    aiplatform.BatchPredictionJob.create(
+    if batch_prediction_name is None:
+      batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'    
+    job = aiplatform.BatchPredictionJob().create(
       job_display_name = f'{batch_prediction_name}',
       model_name = model,
       instances_format = 'bigquery',
       predictions_format = 'bigquery',
-      bigquery_source = f'bq://{project_id}.{dataset_id}.{table_id}'
+      bigquery_source = f'bq://{project_id}.{dataset_id}.{table_id}',
+      biquery_destination_prefix = f'bq://{project_id}.{dataset_id}',
     )
-
+    job.wait_for_resource_creation()
+    job_client = self._get_vertexai_job_client(
+      self._params['location'])
+    batch_prediction_name = job.resource_name
+    batch_prediction_job = self._get_batch_prediction_job(
+      job_client, batch_prediction_name)
+    self._wait_for_job(batch_prediction_job)
+    
   def _execute(self):
-    aiplatform.init(
-      project=self._params['bq_project_id'],
-      location=self._params['bq_dataset_location'])
-    model = self._get_model()
-    if model is not None:
-      self._create_batch_prediction_job(model)
-      self.log_info('Created Vertex AI batch prediction job.')
-    else:
-      self.log_info('No model found. Please try again.')
+    self._execute_batch_prediction()
+    self.log_info('Finished successfully!')
