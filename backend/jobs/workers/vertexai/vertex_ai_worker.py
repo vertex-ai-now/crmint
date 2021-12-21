@@ -30,6 +30,9 @@ class VertexAIWorker(Worker):
   
   def _get_training_pipeline(self, pipeline_client, pipeline_name):
     return pipeline_client.get_training_pipeline(name=pipeline_name)
+  
+  def _get_location_from_pipeline_name(self, pipeline_name):
+    return pipeline_name.split('/')[3]
 
   def _wait_for_pipeline(self, pipeline):
     """Waits for pipeline completion and relays to VertexAIWaiter if it takes too long."""
