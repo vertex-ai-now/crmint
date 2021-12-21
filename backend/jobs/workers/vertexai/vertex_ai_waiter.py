@@ -23,12 +23,29 @@ class VertexAIWaiter(VertexAIWorker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
   def _execute(self):
-    self.log_info(f'{self._params['worker_class']}')
-    pipeline_name = self._params['id']
-    location = self._get_location_from_pipeline_name(pipeline_name)
-    client = self._get_vertexai_pipeline_client(location)
-    pipeline = self._get_training_pipeline(client, pipeline_name)
-    if pipeline.state == 'PIPELINE_STATE_FAILED':
-      raise WorkerException(f'Training pipeline {pipeline.name} failed.')
-    if pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
-      self._enqueue('VertexAIWaiter', {'id': self._params['id']}, 60)
+    if self._params['worker_class'] == 'VertexAITabularTrainer':
+      pipeline_name = self._params['id']
+      location = self._get_location_from_pipeline_name(pipeline_name)
+      client = self._get_vertexai_pipeline_client(location)
+      pipeline = self._get_training_pipeline(client, pipeline_name)
+      if pipeline.state == 'PIPELINE_STATE_FAILED':
+        raise WorkerException(f'Training pipeline {pipeline.name} failed.')
+      if pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
+        self._enqueue(
+          'VertexAIWaiter', {
+            'id': self._params['id'],
+            'worker_class': 'VertexAITabularTrainer'},
+          60)
+    if self._params['worker_class'] == 'VertexAIToBQPredictor':
+      job_name = self._params['id']
+      location = self._get_location_from_job_name(job_name)
+      client = self._get_vertexai_job_client(location)
+      job = self._get_batch_prediction_job(client, job_name)
+      if job.state == 'JOB_STATE_FAILED':
+        raise WorkerException(f'Job {job.name} failed.')
+      if job.state != 'JOB_STATE_SUCCEEDED':
+        self._enqueue(
+          'VertexAIWaiter', {
+            'id': self._params['id'],
+            'worker_class': 'VertexAIToBQPredictor'},
+          60)
