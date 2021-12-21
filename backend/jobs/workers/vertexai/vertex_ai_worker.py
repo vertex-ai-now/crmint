@@ -52,7 +52,11 @@ class VertexAIWorker(Worker):
     time.sleep(delay)
     while pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
       if waiting_time > 300:  # Once 5 minutes have passed, spawn VertexAIWaiter.
-        self._enqueue('VertexAIWaiter', {'id': pipeline.name}, 60)
+        self._enqueue(
+          'VertexAIWaiter', {
+            'id': pipeline.name, 
+            'worker_class': self.__class__.__name__}, 
+          60)
         return
       if delay < 30:
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
@@ -68,7 +72,11 @@ class VertexAIWorker(Worker):
     time.sleep(delay)
     while job.state != 'JOB_STATE_SUCCEEDED':
       if waiting_time > 300:  # Once 5 minutes have passed, spawn VertexAIWaiter.
-        self._enqueue('VertexAIWaiter', {'id': job.name}, 60)
+        self._enqueue(
+          'VertexAIWaiter', {
+            'id': job.name, 
+            'worker_class': self.__class__.__name__},
+          60)
         return
       if delay < 30:
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
