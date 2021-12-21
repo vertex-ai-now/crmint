@@ -23,11 +23,12 @@ class VertexAIWaiter(VertexAIWorker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
   def _execute(self):
-    pipeline_name = self._params['pipeline_id']
+    self.log_info(f'{self._params['worker_class']}')
+    pipeline_name = self._params['id']
     location = self._get_location_from_pipeline_name(pipeline_name)
     client = self._get_vertexai_pipeline_client(location)
     pipeline = self._get_training_pipeline(client, pipeline_name)
     if pipeline.state == 'PIPELINE_STATE_FAILED':
       raise WorkerException(f'Training pipeline {pipeline.name} failed.')
     if pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
-      self._enqueue('VertexAIWaiter', {'pipeline_id': self._params['pipeline_id']}, 60)
+      self._enqueue('VertexAIWaiter', {'id': self._params['id']}, 60)
