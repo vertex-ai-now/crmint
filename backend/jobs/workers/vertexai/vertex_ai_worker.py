@@ -55,7 +55,7 @@ class VertexAIWorker(Worker):
         self._enqueue(
           'VertexAIWaiter', {
             'id': pipeline.name, 
-            'worker_class': self.__class__.__name__}, 
+            'worker_class': 'VertexAITabularTrainer'}, 
           60)
         return
       if delay < 30:
@@ -75,7 +75,7 @@ class VertexAIWorker(Worker):
         self._enqueue(
           'VertexAIWaiter', {
             'id': job.name, 
-            'worker_class': self.__class__.__name__},
+            'worker_class': 'VertexAIToBQPredictor'},
           60)
         return
       if delay < 30:
