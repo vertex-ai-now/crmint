@@ -15,7 +15,7 @@
 from google.cloud import aiplatform
 from jobs.workers.worker import Worker, WorkerException
 
-class VertexAIPredictor(Worker):
+class VertexAIToBQPredictor(Worker):
   """Worker to train a Vertex AI AutoML model using a Vertex dataset."""
 
   PARAMS = [
