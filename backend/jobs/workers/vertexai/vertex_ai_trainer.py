@@ -14,13 +14,14 @@
 
 from google.cloud import aiplatform
 from jobs.workers.worker import Worker, WorkerException
+from jobs.workers.vertexai.vertex_ai_worker import VertexAIWorker
 
-class VertexAITrainer(Worker):
+class VertexAITrainer(VertexAIWorker):
   """Worker to train a Vertex AI AutoML model using a Vertex dataset."""
 
   PARAMS = [
-      ('project_id', 'string', True, '', 'GCP Project ID'),
-      ('dataset_location', 'string', True, '', 'BQ Data Location'),
+      ('bq_project_id', 'string', True, '', 'GCP Project ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Data Location'),
       ('vertexai_dataset_name', 'string', True, '', 'Vertex AI Dataset Name'),
       ('prediction_type', 'string', True, '', 'Prediction Type '
        '(regression or classification)'),
@@ -48,10 +49,8 @@ class VertexAITrainer(Worker):
       optimization_prediction_type=f'{prediction_type}',
     )
 
-  def _execute(self):
-    aiplatform.init(
-      project=self._params['project_id'],
-      location=self._params['dataset_location'])
+  def _execute_training(self):
+    aiplatform.init()
     budget_hours = self._params['budget_hours']
     target_column = self._params['target_column']
     vertexai_model_name = self._params['vertexai_model_name']
@@ -60,13 +59,16 @@ class VertexAITrainer(Worker):
       self.log_info('No Vertex AI dataset found. Try again.')
       return
     job = self._create_automl_tabular_training_job()
-    model = job.run(
+    job.run(
       dataset = dataset,
       target_column = f'{target_column}',
       budget_milli_node_hours = f'{budget_hours * 1000}',
       model_display_name = f'{vertexai_model_name}',
       disable_early_stopping = False,
+      sync = False,
     )
-    model.wait()
-    self.log_info(
-      f'Created Vertex AI Model with display name {model.display_name}')
+    self._wait(job)
+
+
+  def _execute(self):
+    self._execute_training()
