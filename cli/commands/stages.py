@@ -83,7 +83,7 @@ def _default_stage_context(stage_name):
       connector_machine_type=settings.CONNECTOR_MACHINE_TYPE,
       network_project=settings.NETWORK_PROJECT,
       gae_project=settings.GAE_PROJECT,
-      gae_region=settings.GAE_REGION,
+      gae_region=region,
       gae_app_title=settings.GAE_APP_TITLE,
       pubsub_verification_token=settings.PUBSUB_VERIFICATION_TOKEN,
       notification_sender_email="noreply@{}.appspotmail.com".format(stage_name))
