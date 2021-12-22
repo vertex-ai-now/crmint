@@ -98,21 +98,6 @@ def grant_cloud_build_permissions(stage, debug=False):
   )
   shared.execute_command("Grant Cloud Build permissions", cmd, debug=debug)
 
-    
-def create_service_account_key_if_needed(stage, debug=False):
-  if shared.check_service_account_file(stage):
-    click.echo('     Service account key already exists.')
-    return
-
-  service_account_file = shared.get_service_account_file(stage)
-  project_id = stage.project_id_gae
-  cmd = (
-      f'{GCLOUD} iam service-accounts keys create "{service_account_file}"'
-      f' --iam-account="{project_id}@appspot.gserviceaccount.com"'
-      f' --key-file-type="json"'
-      f' --project={project_id}')
-  shared.execute_command("Create the service account key", cmd, debug=debug)
-
 
 def _check_if_cloudsql_instance_exists(stage, debug=False):
   project_id = stage.project_id_gae
@@ -344,8 +329,7 @@ def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
   service_account_file_path = shared.get_service_account_file(stage)
   cmd = (
-      f'cloudshell download-files "{stage_file_path}"'
-      f' "{service_account_file_path}"')
+      f'cloudshell download-files "{stage_file_path}"')
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
@@ -386,8 +370,6 @@ def copy_src_to_workdir(stage, debug=False):
   )
   copy_insight_config_cmd = (
       f' cp backend/data/insight.json {workdir}/backend/data/insight.json')
-  copy_service_account_cmd = (
-      f' cp backend/data/{service_account_filename} {workdir}/backend/jobs/workers/ga/service-account.json')
   # copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
   #     workdir=stage.workdir,
   #     cloud_db_uri=stage.cloud_db_uri)
@@ -412,7 +394,6 @@ def copy_src_to_workdir(stage, debug=False):
   cmds = [
       copy_src_cmd,
       copy_insight_config_cmd,
-      copy_service_account_cmd,
       copy_app_data,
       copy_prod_env,
   ]
@@ -434,6 +415,9 @@ def deploy_frontend(stage, debug=False):
        ' NG_CLI_ANALYTICS=ci npm install --legacy-peer-deps'),
       (f' node --max-old-space-size={max_old_space_size}'
        ' ./node_modules/@angular/cli/bin/ng build'),
+      (f' {GCLOUD} --project={project_id} app deploy'
+       ' frontend_app.yaml --version=v1'),
+      # Retry the deployment in case of P4SA issues.
       (f' {GCLOUD} --project={project_id} app deploy'
        ' frontend_app.yaml --version=v1'),
   ]
@@ -609,7 +593,6 @@ def setup(stage_name, debug):
   components = [
       activate_services,
       create_appengine,
-      create_service_account_key_if_needed,
       grant_cloud_build_permissions,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
