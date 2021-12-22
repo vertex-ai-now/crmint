@@ -127,22 +127,22 @@ def before_hook(stage, stage_name):
 
   # Working directory to prepare deployment files.
   if not stage.workdir:
-    stage.workdir = "/tmp/{}".format(stage.project_id_gae)
+    stage.workdir = "/tmp/{}".format(stage.project_id)
 
   # Set DB connection variables.
-  stage.db_instance_conn_name = "{}:{}:{}".format(
-      stage.project_id_gae,
-      stage.project_sql_region,
-      stage.db_instance_name)
+  stage.database_instance_conn_name = "{}:{}:{}".format(
+      stage.database_project,
+      stage.database_region,
+      stage.database_instance_name)
 
   stage.cloudsql_dir = "/tmp/cloudsql"
   stage.cloud_db_uri = "mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}".format(
-      stage.db_username, stage.db_password,
-      stage.db_name, stage.db_instance_conn_name)
+      stage.database_username, stage.database_password,
+      stage.database_name, stage.database_instance_conn_name)
 
   stage.local_db_uri = "mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}".format(
-      stage.db_username, stage.db_password, stage.db_name,
-      stage.cloudsql_dir, stage.db_instance_conn_name)
+      stage.database_username, stage.database_password, stage.database_name,
+      stage.cloudsql_dir, stage.database_instance_conn_name)
 
   # Cleans the working directory.
   target_dir = stage.workdir
