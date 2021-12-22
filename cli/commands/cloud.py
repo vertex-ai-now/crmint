@@ -705,7 +705,7 @@ def deploy_jobs(stage, debug=False):
   gae_project = stage.gae_project
   region = stage.gae_region
   connector = stage.connector
-  controller_files = ['jobs_app.yaml']
+  job_files = ['jobs_app.yaml']
   # Connector object with required configurations
   connector_config = {
       'vpc_access_connector': {
@@ -713,7 +713,7 @@ def deploy_jobs(stage, debug=False):
               f'projects/{gae_project}/locations/{region}/connectors/{connector}'
       }
   }
-  for f in controller_files:
+  for f in job_files:
     try:
       with open(os.path.join(cmd_workdir, f), 'r') as yaml_read:
         r = safe_load(yaml_read)
