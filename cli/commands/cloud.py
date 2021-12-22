@@ -269,12 +269,7 @@ def create_vpc_connector(stage, debug=False):
 
 def grant_required_permissions(stage, debug=False):
   project_id = stage.project_id
-  cmd = (f'{GCLOUD} projects list '
-         f' --filter="{project_id}" '
-         f' --format="value(PROJECT_NUMBER)"')
-  _, out, _ = shared.execute_command(
-      'Getting the project number', cmd, debug=debug)
-  project_number = out.strip()
+  project_number = _get_project_number(stage, debug)
   commands = [
       (f'{GCLOUD} projects add-iam-policy-binding {project_id}'
        f' --member="serviceAccount:{project_number}@cloudbuild.gserviceaccount.com"'
