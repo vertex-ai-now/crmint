@@ -15,7 +15,7 @@
 """CRMint's abstract worker dealing with Google Analytics."""
 import os
 from googleapiclient.discovery import build
-from oauth2client.service_account import ServiceAccountCredentials
+from google.auth import compute_engine
 from jobs.workers.worker import Worker, WorkerException
 
 
@@ -23,10 +23,7 @@ class GAWorker(Worker):
   """Abstract class with GA-specific methods."""
 
   def _ga_setup(self, v='v4'):
-    _KEY_FILE = os.path.join(
-      os.path.dirname(__file__), 'service-account.json')
-    credentials = ServiceAccountCredentials.from_json_keyfile_name(
-      _KEY_FILE)
+    credentials = compute_engine.Credentials()
     service = 'analyticsreporting' if v == 'v4' else 'analytics'
     self._ga_client = build(service, v, credentials=credentials)
 
