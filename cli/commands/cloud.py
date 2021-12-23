@@ -415,7 +415,7 @@ def create_pubsub_topics(stage, debug=False):
 
 
 def _get_project_number(stage, debug=False):
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   cmd = (f'{GCLOUD} projects describe {project_id}'
          f' | grep -Po "(?<=projectNumber: .)\d+"')
   _, out, _ = shared.execute_command('Getting project number', cmd, debug=debug)
@@ -425,7 +425,7 @@ def _get_project_number(stage, debug=False):
 def create_pubsub_subscriptions(stage, debug=False):
   existing_subscriptions = _get_existing_pubsub_entities(
       stage, 'subscriptions', debug)
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   service_account = f'{project_id}@appspot.gserviceaccount.com'
   for topic_id in SUBSCRIPTIONS:
     subscription_id = f'{topic_id}-subscription'
@@ -451,7 +451,7 @@ def create_pubsub_subscriptions(stage, debug=False):
 
 
 def grant_pubsub_permissions(stage, debug=False):
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   project_number = _get_project_number(stage, debug)
   pubsub_sa = f'service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com'
   cmd = (f' {GCLOUD} projects add-iam-policy-binding {project_id}'
@@ -464,7 +464,7 @@ def grant_pubsub_permissions(stage, debug=False):
 
 
 def _check_if_scheduler_job_exists(stage, debug=False):
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   cmd = (f' {GCLOUD} scheduler jobs list --project={project_id} 2>/dev/null'
          f' | grep -q crmint-cron')
   status, _, _ = shared.execute_command(
@@ -479,7 +479,7 @@ def create_scheduler_job(stage, debug=False):
   if _check_if_scheduler_job_exists(stage, debug=debug):
     click.echo('     Cloud Scheduler job already exists.')
     return
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   cmd = (f' {GCLOUD} scheduler jobs create pubsub crmint-cron'
          f" --project={project_id} --schedule='* * * * *'"
          f' --topic=crmint-start-pipeline'
