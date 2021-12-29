@@ -321,6 +321,7 @@ def activate_services(stage, debug=False):
       f' storage-component.googleapis.com'
       f' sqladmin.googleapis.com'
       f' cloudscheduler.googleapis.com'
+      f' compute.googleapis.com'
   )
   shared.execute_command('Activate Cloud services', cmd, debug=debug)
 
