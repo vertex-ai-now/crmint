@@ -227,7 +227,7 @@ def create_subnet(stage, debug=False):
 
 
 def _check_if_vpc_connector_exists(stage, debug=False):
-  connector = stage.connector,
+  connector = stage.connector
   network_project = stage.network_project
   cmd = (
       f'{GCLOUD} compute networks vpc-access connectors describe {connector}'
