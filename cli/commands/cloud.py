@@ -228,10 +228,12 @@ def create_subnet(stage, debug=False):
 
 def _check_if_vpc_connector_exists(stage, debug=False):
   connector = stage.connector
+  subnet_region = stage.subnet_region
   network_project = stage.network_project
   cmd = (
       f'{GCLOUD} compute networks vpc-access connectors describe {connector}'
-      f' --verbosity critical --project={network_project} | grep {connector}')
+      f' --verbosity critical --region={subnet_region} --project={network_project}'
+      f' | grep {connector}')
   status, _, _ = shared.execute_command(
       'Check if VPC Connector already exists',
       cmd,
