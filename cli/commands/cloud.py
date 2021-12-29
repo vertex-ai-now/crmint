@@ -276,11 +276,11 @@ def grant_required_permissions(stage, debug=False):
        f' --role="roles/storage.objectViewer"'),
       (f'{GCLOUD} projects add-iam-policy-binding {project_id}'
        f' --role="roles/compute.networkUser"'
-       f' --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com'
+       f' --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com"'
       ),
       (f'{GCLOUD} projects add-iam-policy-binding {project_id}'
        f' --role="roles/compute.networkUser"'
-       f' --member="serviceAccount:service-{project_number}@cloudservices.gserviceaccount.com'
+       f' --member="serviceAccount:service-{project_number}@cloudservices.gserviceaccount.com"'
       )
   ]
   total = len(commands)
@@ -391,7 +391,7 @@ def create_cloudsql_database_if_needed(stage, debug=False):
 
 
 def _get_existing_pubsub_entities(stage, entities, debug=False):
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   cmd = (f' {GCLOUD} --project={project_id} pubsub {entities} list'
          f' | grep -P ^name:')
   _, out, _ = shared.execute_command(
