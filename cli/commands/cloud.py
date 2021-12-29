@@ -408,7 +408,7 @@ def create_pubsub_topics(stage, debug=False):
   if not topics_to_create:
     click.echo("     CRMint's PubSub topics already exist")
     return
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   topics = ' '.join(topics_to_create)
   cmd = f'{GCLOUD} --project={project_id} pubsub topics create {topics}'
   shared.execute_command("Creating CRMint's PubSub topics", cmd, debug=debug)
