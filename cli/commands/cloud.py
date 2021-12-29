@@ -515,7 +515,6 @@ def activate_services(stage, debug=False):
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
-  service_account_file_path = shared.get_service_account_file(stage)
   cmd = (f'cloudshell download-files "{stage_file_path}"')
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
