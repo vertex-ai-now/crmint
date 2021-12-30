@@ -22,7 +22,7 @@ class VertexAIToBQPredictor(Worker):
       ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
       ('vertexai_batch_prediction_name', 'string', False, '',
        'Vertex AI Batch Prediction Name'),
-      ('location', 'string', True, '', 'Location'),
+      ('region', 'string', True, '', 'Region'),
       ('bq_project_id', 'string', True, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
@@ -58,7 +58,7 @@ class VertexAIToBQPredictor(Worker):
     )
     job.wait_for_resource_creation()
     job_client = self._get_vertexai_job_client(
-      self._params['location'])
+      self._params['region'])
     batch_prediction_name = job.resource_name
     batch_prediction_job = self._get_batch_prediction_job(
       job_client, batch_prediction_name)
