@@ -17,6 +17,8 @@
 import time
 from google.cloud import aiplatform
 from google.cloud.aiplatform import gapic as aip
+from google.cloud.aiplatform.compat.types import pipeline_state as ps
+from google.cloud.aiplatform.compat.types import job_state as js
 from jobs.workers.worker import Worker, WorkerException
 
 
@@ -50,7 +52,7 @@ class VertexAIWorker(Worker):
     delay = 5
     waiting_time = 5
     time.sleep(delay)
-    while pipeline.state != 'PIPELINE_STATE_SUCCEEDED':
+    while pipeline.state != ps.PipelineState.PIPELINE_STATE_SUCCEEDED:
       if waiting_time > 300:  # Once 5 minutes have passed, spawn VertexAIWaiter.
         self._enqueue(
           'VertexAIWaiter', {
@@ -62,7 +64,7 @@ class VertexAIWorker(Worker):
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
       time.sleep(delay)
       waiting_time += delay
-    if pipeline.state == 'PIPELINE_STATE_FAILED':
+    if pipeline.state == ps.PipelineState.PIPELINE_STATE_FAILED:
       raise WorkerException(f'Training pipeline {pipeline.name} failed.')
       
   def _wait_for_job(self, job):
@@ -70,7 +72,7 @@ class VertexAIWorker(Worker):
     delay = 5
     waiting_time = 5
     time.sleep(delay)
-    while job.state != 'JOB_STATE_SUCCEEDED':
+    while job.state != js.JobState.JOB_STATE_SUCCEEDED:
       if waiting_time > 300:  # Once 5 minutes have passed, spawn VertexAIWaiter.
         self._enqueue(
           'VertexAIWaiter', {
@@ -82,5 +84,5 @@ class VertexAIWorker(Worker):
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
       time.sleep(delay)
       waiting_time += delay
-    if job.state == 'JOB_STATE_FAILED':
+    if job.state == js.JobState.JOB_STATE_FAILED:
       raise WorkerException(f'Job {job.name} failed.')
