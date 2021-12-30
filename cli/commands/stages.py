@@ -19,77 +19,15 @@ import string
 import click
 
 from cli.utils import constants
+from cli.utils import settings
 from cli.utils import shared
+from cli.utils import stage_file_template
 
 
 STAGE_VERSION_1_0 = "v1.0"
 STAGE_VERSION_2_0 = "v2.0"
 
 SUPPORTED_STAGE_VERSIONS = (STAGE_VERSION_1_0, STAGE_VERSION_2_0)
-
-
-STAGE_FILE_TEMPLATE = """
-#
-# Copyright 2018 Google Inc
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-###
-# Variables for stage
-###
-
-# Project ID in Google Cloud
-project_id_gae = "{project_id_gae}"
-
-# Region. Use `gcloud app regions list` to list available regions.
-project_region = "{project_region}"
-
-# Machine Type. Use `gcloud sql tiers list` to list available machine types.
-project_sql_tier = "{project_sql_tier}"
-
-# SQL region. Use `gcloud sql tiers list | grep db-g1-small` to list available regions.
-project_sql_region = "{project_sql_region}"
-
-# Directory on your space to deploy
-# NB: if kept empty this will defaults to /tmp/<project_id_gae>
-workdir = "{workdir}"
-
-# Database name
-db_name = "{db_name}"
-
-# Database username
-db_username = "{db_username}"
-
-# Database password
-db_password = "{db_password}"
-
-# Database instance name
-db_instance_name = "{db_instance_name}"
-
-# PubSub verification token
-pubsub_verification_token = "{pubsub_verification_token}"
-
-# Sender email for notifications
-notification_sender_email = "{notification_sender_email}"
-
-# Title name for application
-app_title = "{app_title}"
-
-# Enable flag for looking of pipelines on other stages
-# Options: True, False
-enabled_stages = False
-
-""".strip()
 
 
 def _get_regions(project_id):
@@ -118,26 +56,37 @@ def _get_regions(project_id):
 
 
 def _default_stage_context(stage_name):
-  # Generates a cryptographically secured random password for the database user.
-  # Source: https://stackoverflow.com/a/23728630
-  random_password = ''.join(random.SystemRandom().choice(
-      string.ascii_lowercase + string.digits) for _ in range(16))
-  random_token = ''.join(random.SystemRandom().choice(
-      string.ascii_lowercase + string.digits) for _ in range(32))
   region, sql_region = _get_regions(stage_name)
   return dict(
-      project_id_gae=stage_name,
+      project_id=settings.PROJECT,
       project_region=region,
-      project_sql_region=sql_region,
-      project_sql_tier='db-g1-small',
-      workdir=f'/tmp/{stage_name}',
-      db_name='crmint',
-      db_username='crmint',
-      db_password=random_password,
-      db_instance_name='crmint',
-      pubsub_verification_token=random_token,
-      notification_sender_email=f'noreply@{stage_name}.appspotmail.com',
-      app_title=' '.join(stage_name.split('-')).title())
+      workdir="/tmp/{}".format(stage_name),
+      database_name=settings.DATABASE_NAME,
+      database_region=sql_region,
+      database_tier=settings.DATABASE_TIER,
+      database_username=settings.DATABASE_USER,
+      database_password=settings.DATABASE_PASSWORD,
+      database_instance_name=settings.DATABASE_INSTANCE_NAME,
+      database_public_ip=settings.DATABASE_PUBLIC_IP,
+      database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
+      database_ha_type=settings.DATABASE_HA_TYPE,
+      database_project=settings.DATABASE_PROJECT,
+      network=settings.NETWORK,
+      subnet=settings.SUBNET,
+      subnet_region=settings.SUBNET_REGION,
+      subnet_cidr=settings.SUBNET_CIDR,
+      connector=settings.CONNECTOR,
+      connector_subnet=settings.CONNECTOR_SUBNET,
+      connector_cidr=settings.CONNECTOR_CIDR,
+      connector_min_instances=settings.CONNECTOR_MIN_INSTANCES,
+      connector_max_instances=settings.CONNECTOR_MAX_INSTANCES,
+      connector_machine_type=settings.CONNECTOR_MACHINE_TYPE,
+      network_project=settings.NETWORK_PROJECT,
+      gae_project=settings.GAE_PROJECT,
+      gae_region=region,
+      gae_app_title=settings.GAE_APP_TITLE,
+      pubsub_verification_token=settings.PUBSUB_VERIFICATION_TOKEN,
+      notification_sender_email="noreply@{}.appspotmail.com".format(stage_name))
 
 
 def _create_stage_file(stage_name, context=None):
@@ -145,7 +94,7 @@ def _create_stage_file(stage_name, context=None):
   filepath = os.path.join(constants.STAGE_DIR, filename)
   if context is None:
     context = _default_stage_context(stage_name)
-  content = STAGE_FILE_TEMPLATE.format(**context)
+  content = stage_file_template.STAGE_FILE_TEMPLATE.format(**context)
   with open(filepath, 'w+') as fp:
     fp.write(content)
   return filepath

@@ -1,0 +1,3 @@
+# CLI requirements
+# Used to insert YAML config to AppEngine files dynamically
+pyyaml==5.4.1
