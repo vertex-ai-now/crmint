@@ -23,7 +23,7 @@ class BQToVertexAIDataset(Worker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
-      ('vertexai_dataset_name', 'string', False, '', 'Vertex AI Dataset Name')
+      ('vertex_ai_dataset_name', 'string', False, '', 'Vertex AI Dataset Name')
   ]
 
   def _execute(self):
