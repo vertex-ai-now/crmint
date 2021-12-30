@@ -22,7 +22,7 @@ class VertexAITabularTrainer(VertexAIWorker):
 
   PARAMS = [
       ('project_id', 'string', True, '', 'Project ID'),
-      ('location', 'string', True, '', 'Location'),
+      ('region', 'string', True, '', 'Region'),
       ('vertexai_dataset_name', 'string', True, '', 'Vertex AI Dataset Name'),
       ('prediction_type', 'string', True, '', 'Prediction Type '
        '(regression or classification)'),
@@ -69,7 +69,7 @@ class VertexAITabularTrainer(VertexAIWorker):
     )
     job.wait_for_resource_creation()
     pipeline_client = self._get_vertexai_pipeline_client(
-      self._params['location'])
+      self._params['region'])
     pipeline_name = job.resource_name
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
