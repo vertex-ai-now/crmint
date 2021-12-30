@@ -82,5 +82,5 @@ class VertexAIWorker(Worker):
         delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
       time.sleep(delay)
       waiting_time += delay
-    if pipeline.state == 'JOB_STATE_FAILED':
+    if job.state == 'JOB_STATE_FAILED':
       raise WorkerException(f'Job {job.name} failed.')
