@@ -321,13 +321,13 @@ def activate_services(stage, debug=False):
       f' storage-component.googleapis.com'
       f' sqladmin.googleapis.com'
       f' cloudscheduler.googleapis.com'
+      f' compute.googleapis.com'
   )
   shared.execute_command('Activate Cloud services', cmd, debug=debug)
 
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
-  service_account_file_path = shared.get_service_account_file(stage)
   cmd = (
       f'cloudshell download-files "{stage_file_path}"')
   shared.execute_command('Download configuration file', cmd, debug=debug)
@@ -355,7 +355,6 @@ def display_workdir(stage, debug=False):
 def copy_src_to_workdir(stage, debug=False):
   workdir = stage.workdir
   app_title = stage.app_title
-  service_account_filename = stage.service_account_file
   notification_sender_email = stage.notification_sender_email
   enabled_stages = 'true' if stage.enabled_stages else 'false'
   copy_src_cmd = (
