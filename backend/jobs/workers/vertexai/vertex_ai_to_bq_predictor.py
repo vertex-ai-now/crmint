@@ -14,15 +14,17 @@
 
 from google.cloud import aiplatform
 from jobs.workers.worker import Worker, WorkerException
+from jobs.workers.vertexai.vertex_ai_worker import VertexAIWorker
 
-class VertexAIToBQPredictor(Worker):
+
+class VertexAIToBQPredictor(VertexAIWorker):
   """Worker to train a Vertex AI AutoML model using a Vertex dataset."""
 
   PARAMS = [
       ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
       ('vertexai_batch_prediction_name', 'string', False, '',
        'Vertex AI Batch Prediction Name'),
-      ('region', 'string', True, '', 'Region'),
+      ('location', 'string', True, '', 'Location'),
       ('bq_project_id', 'string', True, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
@@ -48,17 +50,17 @@ class VertexAIToBQPredictor(Worker):
     batch_prediction_name = self._params['vertexai_batch_prediction_name']
     if batch_prediction_name is None:
       batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'    
-    job = aiplatform.BatchPredictionJob().create(
+    job = model.batch_predict(
       job_display_name = f'{batch_prediction_name}',
-      model_name = model,
       instances_format = 'bigquery',
       predictions_format = 'bigquery',
       bigquery_source = f'bq://{project_id}.{dataset_id}.{table_id}',
-      biquery_destination_prefix = f'bq://{project_id}.{dataset_id}',
+      bigquery_destination_prefix = f'bq://{project_id}.{dataset_id}',
+      sync = False,
     )
     job.wait_for_resource_creation()
     job_client = self._get_vertexai_job_client(
-      self._params['region'])
+      self._params['location'])
     batch_prediction_name = job.resource_name
     batch_prediction_job = self._get_batch_prediction_job(
       job_client, batch_prediction_name)
