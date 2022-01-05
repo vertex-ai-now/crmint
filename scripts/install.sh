@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGET_BRANCH=$1
+DEFAULT_BRANCH="master"
+TARGET_BRANCH="${1:-$DEFAULT_BRANCH}"
 CURRENT_DIR=$(pwd)
 
 # Downloads the source code.
@@ -57,5 +58,5 @@ EOF
 # Restores initial directory.
 cd "$CURRENT_DIR"
 
-echo "Reloading the shell"
-exec bash
+# Begin CRMint combined deployment
+crmint cloud begin
