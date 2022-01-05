@@ -18,7 +18,6 @@ import click
 from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
-from backend.controller.models import Job, Pipeline
 
 UA_TRAINING_PIPELINE = """{
     {params}
@@ -382,8 +381,10 @@ def activate_services(stage, debug=False):
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
+  training_file_path = _get_config(stage)
   cmd = (
-      f'cloudshell download-files "{stage_file_path}"')
+      f'cloudshell download-files "{stage_file_path}"',
+      f'cloudshell download-files "{training_file_path}"')
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
@@ -783,9 +784,11 @@ def _get_config(stage_name):
      crmint_project=crmint_project,
      training_name=training_name,
      pipeline_name=pipeline_name)
-  pipeline = Pipeline(name=training['name'])
-  pipeline.save()
-  pipeline.import_data(training)
+  filename = 'training_pipeline.json'
+  filepath = os.path.join(constants.STAGE_DIR, filename)
+  with open(filepath, 'w+') as fp:
+    fp.write(training)
+  return filepath
 
 
 ####################### RESET #######################
