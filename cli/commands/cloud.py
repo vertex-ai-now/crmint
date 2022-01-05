@@ -18,7 +18,7 @@ import click
 from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
-from controller.models import Job, Pipeline
+from backend.controller.models import Job, Pipeline
 
 UA_TRAINING_PIPELINE = """{
     {params}
