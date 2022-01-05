@@ -1011,9 +1011,9 @@ def begin(stage_name, debug):
   click.echo(click.style(">>>> Starting", fg='magenta', bold=True))
 
   stages._create(stage_name)
-  _get_config(stage_name)
   _setup(stage_name, debug)
   _deploy(stage_name, debug)
+  _get_config(stage_name)
 
 
 if __name__ == '__main__':
