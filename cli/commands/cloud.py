@@ -15,6 +15,7 @@
 import os
 import sys
 import click
+from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
 
@@ -606,6 +607,36 @@ def setup(stage_name, debug):
     component(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
+def _setup(stage_name, debug=False):
+  """Setup the GCP environment for deploying CRMint."""
+  click.echo(click.style('>>>> Setup', fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
+  if stage is None:
+    sys.exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs setup steps.
+  components = [
+      activate_services,
+      create_appengine,
+      grant_cloud_build_permissions,
+      create_cloudsql_instance_if_needed,
+      create_cloudsql_user_if_needed,
+      create_cloudsql_database_if_needed,
+      create_pubsub_topics,
+      create_pubsub_subscriptions,
+      grant_pubsub_permissions,
+      create_scheduler_job,
+      download_config_files,
+  ]
+  for component in components:
+    component(stage, debug=debug)
+  click.echo(click.style('Done.', fg='magenta', bold=True))
+
+
 # pylint: disable=too-many-arguments
 @cli.command('deploy')
 @click.option('--stage_name', type=str, default=None)
@@ -666,6 +697,56 @@ def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
 # pylint: enable=too-many-arguments
 
 
+def _deploy(stage_name, debug=False, frontend=False, controller=False, jobs=False,
+            dispatch_rules=False, db_migrations=False):
+  """Deploy CRMint on GCP."""
+  click.echo(click.style('>>>> Deploy', fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
+  if stage is None:
+    click.echo(click.style(
+      'Fix that issue by running: $ crmint cloud setup', fg='green'))
+    sys.exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # If no specific components were specified for deploy, then deploy all.
+  if not (frontend or controller or jobs or dispatch_rules or db_migrations):
+    frontend = True
+    controller = True
+    jobs = True
+    dispatch_rules = True
+    db_migrations = True
+
+  # Runs deploy steps.
+  components = [
+      install_required_packages,
+      display_workdir,
+      copy_src_to_workdir,
+  ]
+  if frontend:
+    components.append(deploy_frontend)
+  if controller:
+    components.append(deploy_controller)
+  if jobs:
+    components.append(deploy_jobs)
+  if dispatch_rules:
+    components.append(deploy_dispatch_rules)
+  if db_migrations:
+    components.extend([
+        download_cloud_sql_proxy,
+        start_cloud_sql_proxy,
+        install_python_packages,
+        run_db_migrations,
+        stop_cloud_sql_proxy,
+    ])
+
+  for component in components:
+    component(stage, debug=debug)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
+
+
 @cli.command('reset')
 @click.option('--stage_name', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
@@ -696,6 +777,18 @@ def reset(stage_name, debug):
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
+
+
+@cli.command('begin')
+@click.option('--stage_name', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def begin(stage_name, debug):
+  """Combined steps to deploy CRMint."""
+  click.echo(click.style(">>>> Starting", fg='magenta', bold=True))
+
+  stages._create(stage_name)
+  _setup(stage_name, debug)
+  _deploy(stage_name, debug)
 
 
 if __name__ == '__main__':
