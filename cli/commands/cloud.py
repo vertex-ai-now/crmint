@@ -783,9 +783,9 @@ def _get_config(stage_name):
      crmint_project=crmint_project,
      training_name=training_name,
      pipeline_name=pipeline_name)
-   pipeline = Pipeline(name=training['name'])
-   pipeline.save()
-   pipeline.import_data(training)
+  pipeline = Pipeline(name=training['name'])
+  pipeline.save()
+  pipeline.import_data(training)
 
 
 ####################### RESET #######################
