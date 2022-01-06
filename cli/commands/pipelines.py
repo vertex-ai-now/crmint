@@ -679,14 +679,12 @@ def _event_propensity_config(required=False):
     click.echo(click.style('=== Please enter a value for event category', fg='red', bold=True))
   else:
     click.echo(click.style('=== Event Details', fg='green', bold=True))
-  event_action = '.*?'
-  event_label = '.*?'
   event_category = click.prompt(
     'What is the event category (required)', type=str)
   event_action = click.prompt(
-    'What is the event action (optional - press enter to skip)', type=str)
+    'What is the event action (optional - press enter to skip)', default='.*?')
   event_label = click.prompt(
-    'What is the event label (optional - press enter to skip)', type=str)
+    'What is the event label (optional - press enter to skip)', default='.*?')
   if len(event_category) == 0:
     _event_propensity_config(required=True)
   return event_category, event_action, event_label
