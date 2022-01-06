@@ -788,7 +788,8 @@ def instantbqml(stage_name, debug):
   """Generate BQML pipelines."""
   click.echo(click.style(">>>> Instant BQML", fg='magenta', bold=True))
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  training_file, prediction_file = pipelines._get_config(stage_name)
+  stage = shared.before_hook(stage, stage_name)
+  training_file, prediction_file = pipelines._get_config(stage)
   cmd = (
       f'cloudshell download-files "{training_file}"'
       f' "{prediction_file}"')
