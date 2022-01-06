@@ -56,6 +56,7 @@ UA_TRAINING_PIPELINE = """{{
 
 UA_PREDICTION_PIPELINE = """{{
   {prediction_params}
+  ],
   "jobs": [
     {{
         "hash_start_conditions": [],
@@ -663,7 +664,8 @@ UA_PREDICTION_PIPELINE = """{{
     ]
 }}""".strip()
 
-MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity']
+MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
+                    'Event Propensity']
 
 def _model_objectives():
   click.echo(click.style('=== Marketing Objective', fg='green', bold=True))
@@ -671,6 +673,23 @@ def _model_objectives():
     click.echo(f'{i + 1}) {o}')
   return click.prompt(
     'Enter the index of the marketing objective', type=int) - 1
+
+def _event_propensity_config(required=False):
+  if required:
+    click.echo(click.style('=== Please enter a value for event category', fg='red', bold=True))
+  else:
+    click.echo(click.style('=== Event Details', fg='green', bold=True))
+  event_action = '.*?'
+  event_label = '.*?'
+  event_category = click.prompt(
+    'What is the event category (required)', type=str)
+  event_action = click.prompt(
+    'What is the event action (optional - press enter to skip)', type=str)
+  event_label = click.prompt(
+    'What is the event label (optional - press enter to skip)', type=str)
+  if len(event_category) == 0:
+    _event_propensity_config(required=True)
+  return event_category, event_action, event_label
 
 def _cloud_architecture(stage_name):
   click.echo(click.style('=== Cloud Architecture', fg='blue', bold=True))
@@ -710,6 +729,9 @@ def _get_config(stage_name):
   cid = 'clientid'
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives()
+  objective = MODEL_OBJECTIVES[mo]
+  if objective == 'Event Propensity':
+    event_category, event_action, event_label = _event_propensity_config()
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   crmint_project, ga360_bigquery_export_project, create_dataset = _cloud_architecture(stage_name)
   click.echo(click.style('=== Cloud Storage Bucket Name', fg='blue', bold=True))
@@ -721,7 +743,6 @@ def _get_config(stage_name):
     click.echo(f'{i + 1}) {id}')
   _id = click.prompt(
     'Enter the index for your join key', type=int) - 1
-  objective = MODEL_OBJECTIVES[mo]
   id = identifier[_id]
   scope = ['User or Session', 'Hit']
   click.echo(click.style('=== Join Key scope', fg='blue', bold=True))
@@ -861,8 +882,7 @@ def _get_config(stage_name):
         "type": "text",
         "name": "BQ_DATASET_LOCATION",
         "value": "{bq_dataset_location}"
-      }}
-      ],""".format(
+      }}""".format(
         bq_project_id=stage_name.project_id_gae,
         bq_dataset_id=bq_dataset_id,
         bq_namespace=bq_namespace,
@@ -876,6 +896,27 @@ def _get_config(stage_name):
     visitors_labeled = """converters AS (\\r\\n            SELECT {cid}, event_session, event_date \\r\\n            FROM (\\r\\n                SELECT \\r\\n                    {cid}, \\r\\n                    visitStartTime AS event_session, \\r\\n                    date AS event_date,\\r\\n                    RANK() OVER (PARTITION BY {cid} ORDER BY visitStartTime ASC) \\r\\n                        AS unique_purchase\\r\\n                FROM\\r\\n                    `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n                WHERE \\r\\n                    _TABLE_SUFFIX BETWEEN\\r\\n                        FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                        AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                    AND totals.transactions >= 1\\r\\n                GROUP BY {cid}, event_session, event_date\\r\\n            )\\r\\n            WHERE unique_purchase = 2\\r\\n        ),\\r\\n        non_converters AS (\\r\\n            SELECT\\r\\n                {cid},\\r\\n                0 AS event_session,\\r\\n                '0' AS event_date\\r\\n            FROM\\r\\n                `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n            WHERE \\r\\n                _TABLE_SUFFIX BETWEEN\\r\\n                    FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                    AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                AND {cid} NOT IN (SELECT {cid} FROM converters)\\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        combined AS (\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM converters  \\r\\n            UNION ALL\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM non_converters \\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        visitors_labeled AS ( \\r\\n            SELECT\\r\\n                {cid}, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN event_session END AS event_session, \\r\\n                CASE \\r\\n                    WHEN event_date != '0'\\r\\n                    THEN event_date END AS event_date, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN 1 ELSE 0 END AS label\\r\\n            FROM \\r\\n                combined\\r\\n            GROUP BY\\r\\n                {cid}, event_session, event_date, label\\r\\n        );"""
   if objective == 'Purchase Propensity':
     visitors_labeled = """visitors_labeled AS ( \\r\\n            SELECT\\r\\n              {cid}, \\r\\n              MIN(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN visitStartTime END) AS event_session, \\r\\n              MIN(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN date END) AS event_date, \\r\\n              MAX(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN 1 \\r\\n                  ELSE 0 END) AS label\\r\\n            FROM \\r\\n             `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY \\r\\n              {cid}\\r\\n          )"""
+  if objective == 'Event Propensity':
+    prediction_params += """,
+        {{
+            "type": "text",
+            "name": "EVENT_CATEGORY",
+            "value": "{event_category}"
+        }},
+        {{
+            "type": "text",
+            "name": "EVENT_ACTION",
+            "value": "{event_action}"
+        }},
+        {{
+            "type": "text",
+            "name": "EVENT_LABEL",
+            "value": "{event_label}"
+        }}""".format(
+          event_category=event_category,
+          event_action=event_action,
+          event_label=event_label)
+    visitors_labeled = """visitors_labeled AS (\\r\\n            SELECT\\r\\n              {cid},\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN visitStartTime\\r\\n                  END\\r\\n              ) AS event_session,\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN date\\r\\n                  END\\r\\n              ) AS event_date,\\r\\n              MAX(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN 1\\r\\n                    ELSE 0\\r\\n                  END\\r\\n              ) AS label\\r\\n            FROM\\r\\n              `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`,\\r\\n              UNNEST(hits) AS hits\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY\\r\\n              {cid}\\r\\n          )"""
   prediction_pipeline_name = f'{objective} Prediction Pipeline'
   training_pipeline_name = f'{objective} Training Pipeline'
   prediction_name = f'{objective} Prediction'
