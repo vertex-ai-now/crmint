@@ -787,7 +787,16 @@ def reset(stage_name, debug):
 @click.option('--debug/--no-debug', default=False)
 def instantbqml(stage_name, debug):
   """Generate BQML pipelines."""
-  click.echo(click.style(">>>> Instant BQML", fg='magenta', bold=True))
+  
+  msg = click.style("___  ________   ________  _________  ________  ________   _________        ________  ________  _____ ______   ___            \n", fg='yellow')          
+  msg += click.style("|\  \|\   ___  \|\   ____\|\___   ___\\   __  \|\   ___  \|\___   ___\     |\   __  \|\   __  \|\   _ \  _   \|\  \          \n", fg='yellow')         
+  msg += click.style("\ \  \ \  \\ \  \ \  \___|\|___ \  \_\ \  \|\  \ \  \\ \  \|___ \  \_|     \ \  \|\ /\ \  \|\  \ \  \\\__\ \  \ \  \         \n", fg='yellow')        
+  msg += click.style(" \ \  \ \  \\ \  \ \_____  \   \ \  \ \ \   __  \ \  \\ \  \   \ \  \       \ \   __  \ \  \\\  \ \  \\|__| \  \ \  \        \n", fg='yellow')       
+  msg += click.style("  \ \  \ \  \\ \  \|____|\  \   \ \  \ \ \  \ \  \ \  \\ \  \   \ \  \       \ \  \|\  \ \  \\\  \ \  \    \ \  \ \  \____   \n", fg='yellow')  
+  msg += click.style("   \ \__\ \__\\ \__\____\_\  \   \ \__\ \ \__\ \__\ \__\\ \__\   \ \__\       \ \_______\ \_____  \ \__\    \ \__\ \_______\ \n", fg='yellow')
+  msg += click.style("    \|__|\|__| \|__|\_________\   \|__|  \|__|\|__|\|__| \|__|    \|__|        \|_______|\|___| \__\|__|     \|__|\|_______| \n", fg='yellow')
+  msg += click.style("                   \|_________|                                                                \|__|                         \n", fg='yellow')
+  click.echo(msg)                                                                                                                          
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   stage = shared.before_hook(stage, stage_name)
   training_file, prediction_file = pipelines._get_config(stage)
@@ -799,7 +808,6 @@ def instantbqml(stage_name, debug):
       f'cloudshell download-files "{prediction_file}"')
   shared.execute_command('Download prediction pipeline', cmd, debug=debug)
  
-
 @cli.command('begin')
 @click.option('--stage_name', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
