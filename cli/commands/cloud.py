@@ -15,6 +15,7 @@
 import os
 import sys
 import click
+import time
 from cli.commands import stages
 from cli.commands import pipelines
 from cli.utils import constants
@@ -791,9 +792,12 @@ def instantbqml(stage_name, debug):
   stage = shared.before_hook(stage, stage_name)
   training_file, prediction_file = pipelines._get_config(stage)
   cmd = (
-      f'cloudshell download-files "{training_file}"'
-      f' "{prediction_file}"')
-  shared.execute_command('Download pipelines', cmd, debug=debug)
+      f'cloudshell download-files "{training_file}"')
+  shared.execute_command('Download training pipeline', cmd, debug=debug)
+  time.sleep(5)
+  cmd = (
+      f'cloudshell download-files "{prediction_file}"')
+  shared.execute_command('Download prediction pipeline', cmd, debug=debug)
  
 
 @cli.command('begin')
