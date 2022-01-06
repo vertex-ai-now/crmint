@@ -666,7 +666,7 @@ UA_PREDICTION_PIPELINE = """{{
 }}""".strip()
 
 MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
-                    'Event Propensity']
+                    'Event Propensity', 'Destination Propensity']
 
 def _model_objectives():
   click.echo(click.style('=== Marketing Objective', fg='green', bold=True))
@@ -675,20 +675,21 @@ def _model_objectives():
   return click.prompt(
     'Enter the index of the marketing objective', type=int) - 1
 
-def _event_propensity_config(required=False):
-  if required:
-    click.echo(click.style('=== Please enter a value for event category', fg='red', bold=True))
-  else:
-    click.echo(click.style('=== Event Details', fg='green', bold=True))
+def _event_propensity_config():
+  click.echo(click.style('=== Event Details', fg='green', bold=True))
   event_category = click.prompt(
     'What is the event category (required)', type=str)
   event_action = click.prompt(
     'What is the event action (optional - press enter to skip)', default='.*?')
   event_label = click.prompt(
     'What is the event label (optional - press enter to skip)', default='.*?')
-  if len(event_category) == 0:
-    _event_propensity_config(required=True)
   return event_category, event_action, event_label
+
+def _destination_propensity_config():
+  click.echo(click.style('=== Destination Details', fg='green', bold=True))
+  destination_url = click.prompt(
+    'What is the destination URL', default='/ordercomplete')
+  return destination_url
 
 def _cloud_architecture(stage_name):
   click.echo(click.style('=== Cloud Architecture', fg='blue', bold=True))
@@ -725,12 +726,14 @@ def _bigquery_config():
   return bq_dataset_id, bq_dataset_location
 
 def _get_config(stage_name):
-  cid = 'clientid'
+  cid = 'clientId'
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives()
   objective = MODEL_OBJECTIVES[mo]
   if objective == 'Event Propensity':
     event_category, event_action, event_label = _event_propensity_config()
+  if objective == 'Destination Propensity':
+    destination_url = _destination_propensity_config()
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   crmint_project, ga360_bigquery_export_project, create_dataset = _cloud_architecture(stage_name)
   click.echo(click.style('=== Cloud Storage Bucket Name', fg='blue', bold=True))
@@ -917,6 +920,16 @@ def _get_config(stage_name):
     training_params += event_params
     prediction_params += event_params
     visitors_labeled = """visitors_labeled AS (\\r\\n            SELECT\\r\\n              {cid},\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN visitStartTime\\r\\n                  END\\r\\n              ) AS event_session,\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN date\\r\\n                  END\\r\\n              ) AS event_date,\\r\\n              MAX(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.eventInfo.eventCategory, '(?i){{% EVENT_CATEGORY %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventAction, '(?i){{% EVENT_ACTION %}}')\\r\\n                      AND REGEXP_CONTAINS(hits.eventInfo.eventLabel, '(?i){{% EVENT_LABEL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN 1\\r\\n                    ELSE 0\\r\\n                  END\\r\\n              ) AS label\\r\\n            FROM\\r\\n              `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`,\\r\\n              UNNEST(hits) AS hits\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY\\r\\n              {cid}\\r\\n          )"""
+  if objective == 'Destination Propensity':
+    destination_params = """,
+      {{
+        "type": "text",
+        "name": "DESTINATION_URL",
+        "value": "{destination_url}"
+      }}""".format(destination_url=destination_url)
+    training_params += destination_params
+    prediction_params += destination_params
+    visitors_labeled = """visitors_labeled AS ( \\r\\n            SELECT\\r\\n              {cid},\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.page.pagePath, '(?i){{% DESTINATION_URL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN visitStartTime\\r\\n                  END\\r\\n              ) AS event_session,\\r\\n              MIN(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.page.pagePath, '(?i){{% DESTINATION_URL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN date\\r\\n                  END\\r\\n              ) AS event_date,\\r\\n              MAX(\\r\\n                CASE\\r\\n                  WHEN\\r\\n                    IF(\\r\\n                      REGEXP_CONTAINS(hits.page.pagePath, '(?i){{% DESTINATION_URL %}}'),\\r\\n                      TRUE,\\r\\n                      FALSE) IS TRUE\\r\\n                    THEN 1\\r\\n                    ELSE 0\\r\\n                  END\\r\\n              ) AS label\\r\\n            FROM\\r\\n              `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`,\\r\\n              UNNEST(hits) AS hits\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY\\r\\n              {cid}\\r\\n          )"""
   prediction_pipeline_name = f'{objective} Prediction Pipeline'
   training_pipeline_name = f'{objective} Training Pipeline'
   prediction_name = f'{objective} Prediction'
