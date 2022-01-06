@@ -16,60 +16,9 @@ import os
 import sys
 import click
 from cli.commands import stages
+from cli.commands import pipelines
 from cli.utils import constants
 from cli.utils import shared
-
-UA_TRAINING_PIPELINE = """{{
-    {params}
-    "jobs": [
-      {{
-        "hash_start_conditions": [],
-        "worker_class": "BQMLTrainer",
-        "params": [
-          {{
-            "description": null,
-            "value": "{query}",
-            "label": "Query",
-            "is_required": false,
-            "type": "sql",
-            "name": "query"
-          }},
-          {{
-            "description": null,
-            "value": "{crmint_project}",
-            "label": "BQ Project ID",
-            "is_required": false,
-            "type": "string",
-            "name": "bq_project_id"
-          }},
-          {{
-            "description": null,
-            "value": "{{% BQ_DATASET %}}",
-            "label": "BQ Dataset ID",
-            "is_required": false,
-            "type": "string",
-              "name": "bq_dataset_id"
-          }},
-          {{
-            "description": null,
-            "value": "{{% BQ_DATASET_LOCATION %}}",
-            "label": "BQ Dataset Location",
-            "is_required": false,
-            "type": "string",
-            "name": "bq_dataset_location"
-          }}
-        ],
-        "id": "training_query",
-        "name": "{training_name}"
-      }}
-    ],
-    "name": "{pipeline_name} - Audiences",
-    "schedules": [
-      {{
-        "cron": "0 0 * * 0"
-      }}
-    ]
-}}""".strip()
 
 
 GCLOUD = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
@@ -381,7 +330,6 @@ def activate_services(stage, debug=False):
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
-  training_file_path = _get_config(stage)
   cmd = (
       f'cloudshell download-files "{stage_file_path}"'
       f' "{training_file_path}"')
@@ -618,195 +566,6 @@ def run_db_migrations(stage, debug=False):
       'Applying database migrations', cmd, cwd=cmd_workdir, debug=debug)
 
 
-def _get_config(stage_name):
-  cid = 'clientid'
-  model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
-  objectives = ['Purchase Propensity', 'Repeat Purchase Propensity']
-  click.echo(click.style('=== Model Objective', fg='green', bold=True))
-  for i, obj in enumerate(objectives):
-    click.echo(f'{i + 1}) {obj}')
-  mo = click.prompt(
-    'Enter an index of the marketing objective', type=int) - 1
-  click.echo(click.style('=== BigQuery Dataset', fg='blue', bold=True))
-  bq_dataset_id = click.prompt(
-    'What is your BigQuery dataset', type=str)
-  click.echo(click.style('=== BigQuery Dataset Location', fg='blue', bold=True))
-  bq_dataset_location = click.prompt(
-    'What is the location of your BigQuery dataset', type=str)
-  click.echo(click.style('=== Cloud Storage Bucket Name', fg='blue', bold=True))
-  bq_namespace = click.prompt(
-    'Create a Cloud Storage bucket. What is its name', type=str)
-  click.echo(click.style('=== Cloud Architecture', fg='blue', bold=True))
-  loc = click.prompt(
-    'Is the GA360 BigQuery Export located in the same Google Cloud'
-    ' Project as the CRMint application? (Y/n)', type=str)
-  if loc.lower() == 'y':
-    crmint_project = stage_name.project_id_gae
-    ga360_bigquery_export_project = stage_name.project_id_gae
-    create_dataset = '';
-  else:
-    click.echo(click.style('=== GA360 Export Cloud project ID', fg='blue', bold=True))
-    ga360_bigquery_export_project = click.prompt(
-      'What is the Cloud Project ID for your GA360 BigQuery Export?', type=str)
-    click.echo(click.style('=== CRMint Cloud project ID', fg='blue', bold=True))
-    crmint_project = click.prompt(
-      'What is the Cloud Project ID for your CRMint application?', type=str)
-    create_dataset = """CREATE SCHEMA IF NOT EXISTS {crmint_project}.{{% BQ_DATASET %}};\\r\\n""".format(
-        crmint_project=crmint_project)
-  identifier = ['GA Client ID', 'User ID']
-  click.echo(click.style('=== Join Key type', fg='blue', bold=True))
-  for i, id in enumerate(identifier):
-    click.echo(f'{i + 1}) {id}')
-  _id = click.prompt(
-    'Enter the index for your join key', type=int) - 1
-  objective = objectives[mo]
-  id = identifier[_id]
-  if id == 'User ID':
-    scope = ['User or Session', 'Hit']
-    click.echo(click.style('=== User ID scope', fg='blue', bold=True))
-    for i, sc in enumerate(scope):
-      click.echo(f'{i + 1}) {sc}')
-    s = click.prompt(
-      'Enter the index for your User ID scope', type=int) - 1
-    j = scope[s]
-    if j == "Hit":
-      unnest_where_condition =  """\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) != '0'"""
-      key = """(\\r\\n                  SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                  FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n                )"""
-      repeat_partition_by_key = """(\\r\\n                                SELECT \\r\\n                                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                                FROM\\r\\n                                    UNNEST(hits) AS h,\\r\\n                                    UNNEST(h.customDimensions) AS cd\\r\\n                            )"""
-      repeat_uid_key = """(\\r\\n                          SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                          FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        )"""
-      repeat_unnest_where_condition = """\\r\\n                    AND (\\r\\n                        SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                        FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        ) IS NOT NULL\\r\\n                    AND (\\r\\n                        SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                        FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        ) != '0'"""
-    if j == "User or Session":
-      unnest_where_condition = """\\r\\n              AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n              AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) != '0'"""
-      key = """(\\r\\n                  SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                  FROM UNNEST(customDimensions)\\r\\n                )"""
-      repeat_partition_by_key = """(\\r\\n                                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                                FROM UNNEST(customDimensions))"""
-      repeat_uid_key = """(\\r\\n                          SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                          FROM UNNEST(customDimensions)\\r\\n                        )"""
-      repeat_unnest_where_condition = """\\r\\n                        AND (\\r\\n                            SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                            FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n                        AND (\\r\\n                            SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                            FROM UNNEST(customDimensions)) != '0'"""
-  if id == 'GA Client ID':
-    unnest_where_condition = ""
-    key = "GA.clientId"
-    repeat_partition_by_key = "GA.clientId"
-    repeat_uid_key = "GA.clientId"
-    repeat_unnest_where_condition = ""
-  click.echo(click.style('=== GA Account ID', fg='yellow', bold=True))
-  ga_account_id = click.prompt(
-    'What the Google Analytics UA ID? (ie, UA-12345678-9)', type=str)
-  click.echo(click.style('=== GA Custom Dimension Index - Join Key', fg='yellow', bold=True))
-  cd_user_id = click.prompt(
-    'What is the custom dimension index for the join key', type=int)
-  click.echo(click.style('=== GA Custom Dimension Index - Imported Data', fg='yellow', bold=True))
-  imported_data = click.prompt(
-    'What is the custom dimension index for the imported data', type=int)
-  click.echo(click.style('=== GA Dataset ID', fg='yellow', bold=True))
-  ga_dataset_id = click.prompt(
-    'What is the Google Analytics Dataset ID?', type=str)
-  ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
-  click.echo(click.style('=== Linked Ad Account', fg='green', bold=True))
-  for i, id in enumerate(ad_accounts):
-    click.echo(f'{i + 1}) {id}')
-  linked_ad_account = click.prompt(
-    'Enter the index for the linked ad account type', type=int) - 1
-  click.echo(click.style('=== Linked Ad Account ID', fg='green', bold=True))
-  linked_ad_account_id = click.prompt(
-    'What is the account ID for the linked ad account', type=str)
-  if objective == 'Repeat Purchase Propensity':
-    params = """
-      "params": [
-          {{
-            "type": "text",
-            "name": "BQ_PROJECT",
-            "value": "{bq_project_id}"
-          }},
-          {{
-            "type": "text",
-            "name": "BQ_DATASET",
-            "value": "{bq_dataset_id}"
-          }},
-          {{
-            "type": "text",
-            "name": "BQ_NAMESPACE",
-            "value": "{bq_namespace}"
-          }},
-          {{
-            "type": "text",
-            "name": "CD_USER_ID",
-            "value": "{cd_user_id}"
-          }},
-          {{
-            "type": "text",
-            "name": "BQ_DATASET_LOCATION",
-            "value": "{bq_dataset_location}"
-          }}
-      ],""".format(
-        bq_project_id=stage_name.project_id_gae,
-        bq_dataset_id=bq_dataset_id,
-        bq_namespace=bq_namespace,
-        bq_dataset_location=bq_dataset_location,
-        cd_user_id=cd_user_id)
-    visitors_labeled = """converters AS (\\r\\n            SELECT {cid}, event_session, event_date \\r\\n            FROM (\\r\\n                SELECT \\r\\n                    {cid}, \\r\\n                    visitStartTime AS event_session, \\r\\n                    date AS event_date,\\r\\n                    RANK() OVER (PARTITION BY {cid} ORDER BY visitStartTime ASC) \\r\\n                        AS unique_purchase\\r\\n                FROM\\r\\n                    `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n                WHERE \\r\\n                    _TABLE_SUFFIX BETWEEN\\r\\n                        FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                        AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                    AND totals.transactions >= 1\\r\\n                GROUP BY {cid}, event_session, event_date\\r\\n            )\\r\\n            WHERE unique_purchase = 2\\r\\n        ),\\r\\n        non_converters AS (\\r\\n            SELECT\\r\\n                {cid},\\r\\n                0 AS event_session,\\r\\n                '0' AS event_date\\r\\n            FROM\\r\\n                `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n            WHERE \\r\\n                _TABLE_SUFFIX BETWEEN\\r\\n                    FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                    AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                AND {cid} NOT IN (SELECT {cid} FROM converters)\\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        combined AS (\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM converters  \\r\\n            UNION ALL\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM non_converters \\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        visitors_labeled AS ( \\r\\n            SELECT\\r\\n                {cid}, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN event_session END AS event_session, \\r\\n                CASE \\r\\n                    WHEN event_date != '0'\\r\\n                    THEN event_date END AS event_date, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN 1 ELSE 0 END AS label\\r\\n            FROM \\r\\n                combined\\r\\n            GROUP BY\\r\\n                {cid}, event_session, event_date, label\\r\\n        );"""
-  if objective == 'Purchase Propensity':
-    params = """
-      "params": [
-        {{
-            "type": "text",
-            "name": "BQ_PROJECT",
-            "value": "{bq_project_id}"
-        }},
-        {{
-            "type": "text",
-            "name": "BQ_DATASET",
-            "value": "{bq_dataset_id}"
-        }},
-        {{
-            "type": "text",
-            "name": "BQ_NAMESPACE",
-            "value": "{bq_namespace}"
-        }},
-        {{
-            "type": "text",
-            "name": "CD_USER_ID",
-            "value": "{cd_user_id}"
-        }},
-        {{
-            "type": "text",
-            "name": "BQ_DATASET_LOCATION",
-            "value": "{bq_dataset_location}"
-        }}
-    ],""".format(
-      bq_project_id=stage_name.project_id_gae,
-      bq_dataset_id=bq_dataset_id,
-      bq_namespace=bq_namespace,
-      bq_dataset_location=bq_dataset_location,
-      cd_user_id=cd_user_id)
-    visitors_labeled = """visitors_labeled AS ( \\r\\n            SELECT\\r\\n              {cid}, \\r\\n              MIN(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN visitStartTime END) AS event_session, \\r\\n              MIN(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN date END) AS event_date, \\r\\n              MAX(\\r\\n                CASE \\r\\n                  WHEN totals.transactions >= 1 \\r\\n                  THEN 1 \\r\\n                  ELSE 0 END) AS label\\r\\n            FROM \\r\\n             `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY \\r\\n              {cid}\\r\\n          )"""
-  pipeline_name = f'{objective} Training Pipeline'
-  training_name = f'{objective} Training'
-  visitors_labeled = visitors_labeled.format(
-    crmint_project=crmint_project,
-    ga360_bigquery_export_project=ga360_bigquery_export_project,
-    cid=cid)
-  query = """#standardSQL\\r\\n{create_dataset}CREATE OR REPLACE MODEL `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_model`\\r\\n    OPTIONS ({model_options})\\r\\nAS (\\r\\n    WITH \\r\\n        {visitors_labeled},\\r\\n          visitor_region AS (\\r\\n            SELECT\\r\\n              GA.{cid}, \\r\\n              MAX(geoNetwork.region) AS region\\r\\n            FROM \\r\\n             `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n            GROUP BY \\r\\n              {cid}\\r\\n          ),\\r\\n          visitor_day_page_map AS (\\r\\n            SELECT \\r\\n              GA.{cid},\\r\\n              EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date)) AS day,\\r\\n              SUM(totals.pageviews) AS pages_viewed\\r\\n            FROM\\r\\n              `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n              FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n              AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n              GROUP BY 1, 2\\r\\n          ),\\r\\n          visitor_common_day AS (\\r\\n            SELECT \\r\\n              {cid},\\r\\n              /* In the event of a tie, pick any of the top dates. */\\r\\n              CASE \\r\\n                WHEN ANY_VALUE(day) = 1 THEN 'Sunday'\\r\\n                WHEN ANY_VALUE(day) = 2 THEN 'Monday'\\r\\n                WHEN ANY_VALUE(day) = 3 THEN 'Tuesday'\\r\\n                WHEN ANY_VALUE(day) = 4 THEN 'Wednesday'\\r\\n                WHEN ANY_VALUE(day) = 5 THEN 'Thursday'\\r\\n                WHEN ANY_VALUE(day) = 6 THEN 'Friday'\\r\\n                WHEN ANY_VALUE(day) = 7 THEN 'Saturday' \\r\\n              END AS day\\r\\n            FROM \\r\\n              visitor_day_page_map AS day_page_map\\r\\n            WHERE day_page_map.pages_viewed = (\\r\\n              SELECT MAX(pages_viewed)\\r\\n              FROM visitor_day_page_map AS day_map\\r\\n              WHERE day_page_map.{cid} = day_map.{cid})\\r\\n            GROUP BY 1\\r\\n          ),\\r\\n          users_sessions AS (\\r\\n            SELECT \\r\\n                {key} AS uid,\\r\\n                IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n                MAX(Visitor_region.region) AS visited_region,\\r\\n                MAX(Visitor_common_day.day) AS visited_dow,\\r\\n                COUNT(distinct visitId) AS total_sessions,\\r\\n                SUM(totals.pageviews) AS pageviews,\\r\\n                COUNT(totals.bounces) / COUNT(distinct visitId) AS bounce_rate,\\r\\n                SUM(totals.pageviews) / COUNT(distinct visitId) AS avg_session_depth,\\r\\n                MAX(CASE WHEN device.isMobile IS TRUE THEN 1 ELSE 0 END) AS mobile,\\r\\n                MAX(CASE WHEN device.browser = 'Chrome' THEN 1 ELSE 0 END) AS chrome,\\r\\n                MAX(CASE WHEN device.browser LIKE  '%Safari%' THEN 1 ELSE 0 END) AS safari,\\r\\n                MAX(\\r\\n                  CASE WHEN device.browser <> 'Chrome' AND device.browser NOT LIKE '%Safari%' THEN 1 ELSE 0 END) AS browser_other,\\r\\n                SUM(CASE WHEN trafficSource.medium = '(none)' THEN 1 ELSE 0 END) AS visits_traffic_source_none,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'organic' THEN 1 ELSE 0 END) AS visits_traffic_source_organic,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpc' THEN 1 ELSE 0 END) AS visits_traffic_source_cpc,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpm' THEN 1 ELSE 0 END) AS visits_traffic_source_cpm,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'affiliate' THEN 1 ELSE 0 END) AS visits_traffic_source_affiliate,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'referral' THEN 1 ELSE 0 END) AS visits_traffic_source_referral,\\r\\n                COUNT(distinct geoNetwork.region) AS distinct_regions,\\r\\n                COUNT(distinct EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date))) AS num_diff_days_visited\\r\\n            FROM \\r\\n              `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            LEFT JOIN visitor_region AS Visitor_region\\r\\n              ON GA.{cid} = Visitor_region.{cid}\\r\\n            LEFT JOIN visitor_common_day AS Visitor_common_day\\r\\n              ON GA.{cid} = Visitor_common_day.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL){unnest_where_condition}\\r\\n            GROUP BY \\r\\n              1\\r\\n          )\\r\\n        SELECT \\r\\n          * \\r\\n          EXCEPT (uid)\\r\\n        FROM \\r\\n          users_sessions\\r\\n        WHERE \\r\\n          bounce_rate < 1.0 \\r\\n);"""
-  query = query.format(
-      crmint_project=crmint_project,
-      visitors_labeled=visitors_labeled,
-      cid=cid,
-      ga360_bigquery_export_project=ga360_bigquery_export_project,
-      unnest_where_condition=unnest_where_condition,
-      key=key,
-      model_options=model_options,
-      create_dataset=create_dataset)
-  training = UA_TRAINING_PIPELINE.format(
-     params=params,
-     query=query,
-     crmint_project=crmint_project,
-     training_name=training_name,
-     pipeline_name=pipeline_name)
-  filename = 'training_pipeline.json'
-  filepath = os.path.join(constants.STAGE_DIR, filename)
-  with open(filepath, 'w+') as fp:
-    fp.write(training)
-  return filepath
-
-
 ####################### RESET #######################
 
 
@@ -1021,6 +780,19 @@ def reset(stage_name, debug):
     component(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
+
+@cli.command('instantbqml')
+@click.option('--stage_name', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def instantbqml(stage_name, debug):
+  """Generate BQML pipelines."""
+  click.echo(click.style(">>>> Instant BQML", fg='magenta', bold=True))
+  training_file, prediction_file = pipelines._get_config(stage_name)
+  cmd = (
+      f'cloudshell download-files "{training_file}"'
+      f' "{prediction_file}"')
+  shared.execute_command('Download pipelines', cmd, debug=debug)
+ 
 
 @cli.command('begin')
 @click.option('--stage_name', type=str, default=None)
