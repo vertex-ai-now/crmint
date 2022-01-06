@@ -664,7 +664,7 @@ UA_PREDICTION_PIPELINE = """
 
 MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity']
 
-def _model_objective():
+def _model_objectives():
   click.echo(click.style('=== Marketing Objective', fg='green', bold=True))
   for i, o in enumerate(MODEL_OBJECTIVES):
     click.echo(f'{i + 1}) {o}')
