@@ -787,6 +787,7 @@ def reset(stage_name, debug):
 def instantbqml(stage_name, debug):
   """Generate BQML pipelines."""
   click.echo(click.style(">>>> Instant BQML", fg='magenta', bold=True))
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   training_file, prediction_file = pipelines._get_config(stage_name)
   cmd = (
       f'cloudshell download-files "{training_file}"'
