@@ -708,7 +708,7 @@ def _product_propensity_config():
   if p == "Product SKU":
     product_dimension = 'product_propensity.productSKU'
   product = click.prompt(
-    'What is the product', default='Product Name')
+    f'What is the {p}', type=str)
   return product, product_dimension
   
 def _cloud_architecture(stage_name):
