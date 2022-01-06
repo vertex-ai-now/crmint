@@ -55,6 +55,7 @@ UA_TRAINING_PIPELINE = """{{
 }}""".strip()
 
 UA_PREDICTION_PIPELINE = """
+  {prediction_params},
   "jobs": [
     {{
         "hash_start_conditions": [],
@@ -67,7 +68,7 @@ UA_PREDICTION_PIPELINE = """
             "is_required": false,
             "type": "sql",
             "name": "query"
-        }}},
+        }},
         {{
             "description": null,
             "value": "{crmint_project}",
@@ -75,7 +76,7 @@ UA_PREDICTION_PIPELINE = """
             "is_required": false,
             "type": "string",
             "name": "bq_project_id"
-        }}},
+        }},
         {{
             "description": null,
             "value": "{{% BQ_DATASET %}}",
@@ -83,7 +84,7 @@ UA_PREDICTION_PIPELINE = """
             "is_required": false,
             "type": "string",
             "name": "bq_dataset_id"
-        }}},
+        }},
         {{
             "description": null,
             "value": "{{% BQ_NAMESPACE %}}_predictions",
@@ -91,7 +92,7 @@ UA_PREDICTION_PIPELINE = """
             "is_required": false,
             "type": "string",
             "name": "bq_table_id"
-        }}},
+        }},
         {{
             "description": null,
             "value": "{{% BQ_DATASET_LOCATION %}}",
@@ -99,7 +100,7 @@ UA_PREDICTION_PIPELINE = """
             "is_required": false,
             "type": "string",
             "name": "bq_dataset_location"
-        }}},
+        }},
         {{
             "description": null,
             "value": true,
@@ -111,7 +112,7 @@ UA_PREDICTION_PIPELINE = """
         ],
         "id": "predict",
         "name": "Predict"
-    }}},
+    }},
     {{
         "hash_start_conditions": [
         {{
@@ -123,7 +124,7 @@ UA_PREDICTION_PIPELINE = """
         "params": [
         {{
             "description": null,
-            "value": "SELECT\\r\\n    ga.custom_dimension_userId,\\r\\n    predict.prediction AS score,\\r\\n    NTILE(1000) OVER (ORDER BY predict.prediction ASC) AS tile\\r\\nFROM\\r\\n    (\\r\\n        SELECT\\r\\n            {cid}},\\r\\n            predicted_will_convert_later AS prediction\\r\\n        FROM\\r\\n            `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_predictions\`\\r\\n            AS P\\r\\n    ) AS predict\\r\\nINNER JOIN\\r\\n    (\\r\\n        SELECT\\r\\n            {cid}},\\r\\n            {scope_query} AS ga\\r\\n    ON predict.{cid} = ga.{cid};",
+            "value": "SELECT\\r\\n    ga.custom_dimension_userId,\\r\\n    predict.prediction AS score,\\r\\n    NTILE(1000) OVER (ORDER BY predict.prediction ASC) AS tile\\r\\nFROM\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            predicted_will_convert_later AS prediction\\r\\n        FROM\\r\\n            `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_predictions\`\\r\\n            AS P\\r\\n    ) AS predict\\r\\nINNER JOIN\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            {scope_query} AS ga\\r\\n    ON predict.{cid} = ga.{cid};",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -184,7 +185,7 @@ UA_PREDICTION_PIPELINE = """
         "params": [
           {{
             "description": null,
-            "value": "#StandardSQL\\r\\nSELECT\\r\\n  'ga:dimension{{% CD_USER_ID %}}' AS ga_dimension{{% CD_USER_ID %}}},\\r\\n  'ga:dimension{{% CD_SCORE %}}' AS ga_dimension{{% CD_SCORE %}};\\r\\n",
+            "value": "#StandardSQL\\r\\nSELECT\\r\\n  'ga:dimension{{% CD_USER_ID %}}' AS ga_dimension{{% CD_USER_ID %}},\\r\\n  'ga:dimension{{% CD_SCORE %}}' AS ga_dimension{{% CD_SCORE %}};\\r\\n",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -245,7 +246,7 @@ UA_PREDICTION_PIPELINE = """
         "params": [
           {{
             "description": null,
-            "value": "SELECT\\r\\n  custom_dimension_userid AS ga_dimension{{% CD_USER_ID %}}},\\r\\n  CAST(tile AS STRING) AS ga_dimension{{% CD_SCORE %}}\\r\\nFROM\\r\\n  \`{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_data_import_staging\`\\r\\nGROUP BY 1, 2;",
+            "value": "SELECT\\r\\n  custom_dimension_userid AS ga_dimension{{% CD_USER_ID %}},\\r\\n  CAST(tile AS STRING) AS ga_dimension{{% CD_SCORE %}}\\r\\nFROM\\r\\n  \`{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_data_import_staging\`\\r\\nGROUP BY 1, 2;",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -720,16 +721,16 @@ def _get_config(stage_name):
     click.echo(f'{i + 1}) {id}')
   _id = click.prompt(
     'Enter the index for your join key', type=int) - 1
-  objective = objectives[mo]
+  objective = MODEL_OBJECTIVES[mo]
   id = identifier[_id]
+  scope = ['User or Session', 'Hit']
+  click.echo(click.style('=== Join Key scope', fg='blue', bold=True))
+  for i, sc in enumerate(scope):
+    click.echo(f'{i + 1}) {sc}')
+  s = click.prompt(
+    'Enter the index for your Join Key scope', type=int) - 1
+  j = scope[s]
   if id == 'User ID':
-    scope = ['User or Session', 'Hit']
-    click.echo(click.style('=== User ID scope', fg='blue', bold=True))
-    for i, sc in enumerate(scope):
-      click.echo(f'{i + 1}) {sc}')
-    s = click.prompt(
-      'Enter the index for your User ID scope', type=int) - 1
-    j = scope[s]
     if j == "Hit":
       unnest_where_condition =  """\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) != '0'"""
       key = """(\\r\\n                  SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                  FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n                )"""
@@ -748,6 +749,10 @@ def _get_config(stage_name):
     repeat_partition_by_key = "GA.clientId"
     repeat_uid_key = "GA.clientId"
     repeat_unnest_where_condition = ""
+  if j == 'User or Session':
+    scope_query = """(\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
+  if j == 'Hit':
+    scope_query = """(\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
   click.echo(click.style('=== GA Account ID', fg='yellow', bold=True))
   ga_account_id = click.prompt(
     'What the Google Analytics UA ID? (ie, UA-12345678-9)', type=str)
@@ -856,7 +861,8 @@ def _get_config(stage_name):
         "type": "text",
         "name": "BQ_DATASET_LOCATION",
         "value": "{bq_dataset_location}"
-      }}""".format(
+      }}
+      ],""".format(
         bq_project_id=stage_name.project_id_gae,
         bq_dataset_id=bq_dataset_id,
         bq_namespace=bq_namespace,
@@ -864,7 +870,8 @@ def _get_config(stage_name):
         cd_user_id=cd_user_id,
         cd_score=imported_data,
         ga_account_id=account_id,
-        formatted_ga_property_id=ga_account_id)
+        formatted_ga_property_id=ga_account_id,
+        ga_dataset_id=ga_dataset_id)
   if objective == 'Repeat Purchase Propensity':
     visitors_labeled = """converters AS (\\r\\n            SELECT {cid}, event_session, event_date \\r\\n            FROM (\\r\\n                SELECT \\r\\n                    {cid}, \\r\\n                    visitStartTime AS event_session, \\r\\n                    date AS event_date,\\r\\n                    RANK() OVER (PARTITION BY {cid} ORDER BY visitStartTime ASC) \\r\\n                        AS unique_purchase\\r\\n                FROM\\r\\n                    `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n                WHERE \\r\\n                    _TABLE_SUFFIX BETWEEN\\r\\n                        FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                        AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                    AND totals.transactions >= 1\\r\\n                GROUP BY {cid}, event_session, event_date\\r\\n            )\\r\\n            WHERE unique_purchase = 2\\r\\n        ),\\r\\n        non_converters AS (\\r\\n            SELECT\\r\\n                {cid},\\r\\n                0 AS event_session,\\r\\n                '0' AS event_date\\r\\n            FROM\\r\\n                `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n            WHERE \\r\\n                _TABLE_SUFFIX BETWEEN\\r\\n                    FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH))\\r\\n                    AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                AND {cid} NOT IN (SELECT {cid} FROM converters)\\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        combined AS (\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM converters  \\r\\n            UNION ALL\\r\\n            SELECT {cid}, event_session, event_date\\r\\n            FROM non_converters \\r\\n            GROUP BY {cid}, event_session, event_date\\r\\n        ),\\r\\n        visitors_labeled AS ( \\r\\n            SELECT\\r\\n                {cid}, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN event_session END AS event_session, \\r\\n                CASE \\r\\n                    WHEN event_date != '0'\\r\\n                    THEN event_date END AS event_date, \\r\\n                CASE \\r\\n                    WHEN event_session > 0\\r\\n                    THEN 1 ELSE 0 END AS label\\r\\n            FROM \\r\\n                combined\\r\\n            GROUP BY\\r\\n                {cid}, event_session, event_date, label\\r\\n        );"""
   if objective == 'Purchase Propensity':
@@ -899,16 +906,19 @@ def _get_config(stage_name):
     visitors_labeled=visitors_labeled)
   training = UA_TRAINING_PIPELINE.format(
      training_params=training_params,
-     query=training_query,
+     training_query=training_query,
      crmint_project=crmint_project,
      training_name=training_name,
      training_pipeline_name=training_pipeline_name)
   prediction = UA_PREDICTION_PIPELINE.format(
     prediction_query=prediction_query,
+    prediction_params=prediction_params,
     crmint_project=crmint_project,
     prediction_pipeline_name=prediction_pipeline_name,
     linked_account_id=linked_ad_account_id,
-    linked_account_type=linked_ad_account_type)
+    linked_account_type=linked_ad_account_type,
+    cid=cid,
+    scope_query=scope_query)
   training_filename = 'training_pipeline.json'
   prediction_filename = 'prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
