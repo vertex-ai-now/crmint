@@ -714,8 +714,8 @@ def _product_propensity_config():
 def _cloud_architecture(stage_name):
   click.echo(click.style('=== Cloud Architecture', fg='blue', bold=True))
   msg = (
-    f'Is the GA360 BigQuery Export located in the same Google Cloud'
-    f' Project as the CRMint application')
+    f'Is the GA360 BigQuery Export located in the same Google Cloud\n'
+    f'Project as the CRMint application')
   if click.confirm(msg, default=True):
     same_project = True
   else:
@@ -736,12 +736,12 @@ def _cloud_architecture(stage_name):
   return crmint_project, ga360_bigquery_export_project, create_dataset
 
 def _bigquery_config():
-  click.echo(click.style('=== BigQuery Dataset', fg='blue', bold=True))
+  click.echo(click.style('=== BigQuery Dataset ID', fg='blue', bold=True))
   bq_dataset_id = click.prompt(
-    'What is your BigQuery dataset', type=str)
+    'What is your BigQuery dataset ID', type=str)
   click.echo(click.style('=== BigQuery Dataset Location', fg='blue', bold=True))
   bq_dataset_location = click.prompt(
-    'What is the location of your BigQuery dataset', type=str)
+    'What is the location of your GA360 BigQuery dataset', type=str)
   return bq_dataset_id, bq_dataset_location
 
 def _get_config(stage_name):
@@ -758,18 +758,22 @@ def _get_config(stage_name):
     product, product_dimension = _product_propensity_config()
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   crmint_project, ga360_bigquery_export_project, create_dataset = _cloud_architecture(stage_name)
-  click.echo(click.style('=== Cloud Storage Bucket Name', fg='blue', bold=True))
+  click.echo(click.style('=== Namespace', fg='blue', bold=True))
   bq_namespace = click.prompt(
-    'Create a Cloud Storage bucket. What is its name', type=str)
+    'Come up with a unique namespace to keep things'
+    ' organized (ie, acme_purchase_propensity)', type=str)
+  click.echo(click.style('=== GA Account ID', fg='yellow', bold=True))
+  ga_account_id = click.prompt(
+    'What the Google Analytics UA ID', default='UA-12345678-9')
   identifier = ['GA Client ID', 'User ID']
-  click.echo(click.style('=== Join Key type', fg='blue', bold=True))
+  click.echo(click.style('=== Join Key type', fg='yellow', bold=True))
   for i, id in enumerate(identifier):
     click.echo(f'{i + 1}) {id}')
   _id = click.prompt(
     'Enter the index for your join key', type=int) - 1
   id = identifier[_id]
   scope = ['User or Session', 'Hit']
-  click.echo(click.style('=== Join Key scope', fg='blue', bold=True))
+  click.echo(click.style('=== Join Key scope', fg='yellow', bold=True))
   for i, sc in enumerate(scope):
     click.echo(f'{i + 1}) {sc}')
   s = click.prompt(
@@ -798,20 +802,17 @@ def _get_config(stage_name):
     scope_query = """(\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
   if j == 'Hit':
     scope_query = """(\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
-  click.echo(click.style('=== GA Account ID', fg='yellow', bold=True))
-  ga_account_id = click.prompt(
-    'What the Google Analytics UA ID? (ie, UA-12345678-9)', type=str)
   click.echo(click.style('=== GA Custom Dimension Index - Join Key', fg='yellow', bold=True))
   cd_user_id = click.prompt(
-    'What is the custom dimension index for the join key', type=int)
+    f'What is the custom dimension index for the {id}', type=int)
   click.echo(click.style('=== GA Custom Dimension Index - Imported Data', fg='yellow', bold=True))
   imported_data = click.prompt(
     'What is the custom dimension index for the imported data', type=int)
   click.echo(click.style('=== GA Dataset ID', fg='yellow', bold=True))
   ga_dataset_id = click.prompt(
-    'What is the Google Analytics Dataset ID?', type=str)
+    'What is the Google Analytics Dataset ID', type=str)
   ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
-  click.echo(click.style('=== Linked Ad Account', fg='green', bold=True))
+  click.echo(click.style('=== Linked Ad Account Type', fg='green', bold=True))
   for i, id in enumerate(ad_accounts):
     click.echo(f'{i + 1}) {id}')
   linked_ad_account = click.prompt(
