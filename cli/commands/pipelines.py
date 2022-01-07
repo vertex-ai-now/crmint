@@ -740,7 +740,7 @@ def _cloud_architecture(stage_name):
       'What is the Cloud Project ID for your CRMint application?', type=str)
     create_dataset = """CREATE SCHEMA IF NOT EXISTS {crmint_project}.{{% BQ_DATASET %}};\\r\\n""".format(
         crmint_project=crmint_project)
-  return crmint_project, ga360_bigquery_export_project, create_dataset
+  return crmint_project, ga360_bigquery_export_project, create_dataset, same_project
 
 def _bigquery_config():
   _format_heading('BigQuery Dataset ID', 'blue')
@@ -763,7 +763,7 @@ def _get_config(stage_name):
     destination_url = _destination_propensity_config()
   if objective == 'Product Propensity':
     product, product_dimension = _product_propensity_config()
-  crmint_project, ga360_bigquery_export_project, create_dataset = _cloud_architecture(stage_name)
+  crmint_project, ga360_bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
@@ -850,6 +850,35 @@ def _get_config(stage_name):
   _format_heading('Audience Destination ID', 'green')
   linked_ad_account_id = click.prompt(
     f'What is the account ID for the {ad_accounts[linked_ad_account]} account', type=str)
+  _format_heading('Acknowledgments', 'red')
+  cloud_storage = (
+    f'Did you create a bucket in Cloud Storage named {bq_namespace}, yet?')
+  click.confirm(cloud_storage, default=True)
+  click.echo('--------------------------------------------')
+  msg = (
+      f'Your App Engine default service account is:\n'
+      f'{stage_name.project_id_gae}@appspot.gserviceaccount.com')
+  click.echo(click.style(msg, fg='cyan'))
+  click.echo('--------------------------------------------')
+  storage_object_admin = (
+    f'Did you give storage object admin permissions to the\n'
+    f'App Engine default service account\n'
+    f'for the Cloud Storage bucket named {bq_namespace}, yet?')
+  click.confirm(storage_object_admin, default=True)
+  edit_permissions = (
+    f'Did you add edit permissions for the\n'
+    f'App Engine default service account to the\n'
+    f'Google Analytics property, yet?')
+  click.confirm(edit_permissions, default=True)
+  if not same_project:
+    bq_permissions = (
+      f'Did you add:\n'
+      f'  1) BigQuery Data Viewer &\n'
+      f'  2) BigQuery User\n'
+      f'permissions for the App Engine default service account\n'
+      f'{crmint_project}@appspot.gserviceaccount.com to the\n'
+      f'Google Cloud Platform Project {ga360_bigquery_export_project}, yet?')
+    click.confirm(bq_permissions, default=True)
   training_params = """
     "params": [
         {{
