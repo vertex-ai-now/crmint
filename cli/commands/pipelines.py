@@ -875,7 +875,7 @@ def _get_config(stage_name):
       f'  2) BigQuery User\n'
       f'permissions for the App Engine default service account\n'
       f'{crmint_project}@appspot.gserviceaccount.com to the\n'
-      f'Google Cloud Platform Project {ga360_bigquery_export_project}, yet?')
+      f'Google Cloud Platform Project "{ga360_bigquery_export_project}", yet?')
     click.confirm(bq_permissions, default=True)
   _format_heading('Completed', 'green')
   training_params = """
