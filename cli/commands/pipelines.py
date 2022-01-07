@@ -747,6 +747,15 @@ def _bigquery_config():
     'What is the location of your GA360 BigQuery dataset', type=str)
   return bq_dataset_id, bq_dataset_location
 
+def _check_ga_account_id(ga_id):
+  try:
+    return ga_id.split('-')[1]
+  except IndexError:
+    ga_account_id = click.prompt(
+      'Please enter a correctly formatted Google Analytics UA ID',
+      default='UA-12345678-9')
+    _check_ga_account_id(ga_account_id)
+
 def _get_config(stage_name):
   cid = 'clientId'
   product_dimension = ''
@@ -769,6 +778,7 @@ def _get_config(stage_name):
   _format_heading('GA Account ID', 'yellow')
   ga_account_id = click.prompt(
     'What the Google Analytics UA ID', default='UA-12345678-9')
+  account_id = _check_ga_account_id(ga_account_id)
   identifier = ['GA Client ID', 'User ID']
   _format_heading('GA Join Key type', 'yellow')
   click.echo(
@@ -856,7 +866,7 @@ def _get_config(stage_name):
   msg = (
       f'Your App Engine default service account is:')
   click.echo(msg)
-  click.echo(click.style(sa, fg='cyan'))
+  click.echo(click.style(sa, fg='bright_cyan'))
   click.echo('--------------------------------------------')
   storage_object_admin = (
     f'Did you give storage object admin permissions to the\n'
@@ -877,7 +887,7 @@ def _get_config(stage_name):
       f'{crmint_project}@appspot.gserviceaccount.com to the\n'
       f'Google Cloud Platform Project "{ga360_bigquery_export_project}", yet?')
     click.confirm(bq_permissions, default=True)
-  _format_heading('Finished Instant BQML >> Importing Pipelines', 'green')
+  _format_heading('Done >>>> Importing Pipelines', 'green')
   training_params = """
     "params": [
         {{
@@ -910,7 +920,6 @@ def _get_config(stage_name):
       bq_namespace=bq_namespace,
       bq_dataset_location=bq_dataset_location,
       cd_user_id=cd_user_id)
-  account_id = ga_account_id.split('-')[1]
   prediction_params = """
     "params": [
       {{
