@@ -867,7 +867,7 @@ def _get_config(stage_name):
     f'Cloud Storage bucket named "{bq_namespace}", yet?')
   click.confirm(storage_object_admin, default=True)
   edit_permissions = (
-    f'Did you add edit permissions for the\n'
+    f'\nDid you add edit permissions for the\n'
     f'App Engine default service account to the\n'
     f'Google Analytics property, yet?')
   click.confirm(edit_permissions, default=True)
