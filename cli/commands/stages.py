@@ -92,6 +92,17 @@ enabled_stages = False
 """.strip()
 
 
+def _check_for_token():
+  gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
+  cmd = f'{gcloud} pubsub subscriptions describe crmint-start-pipeline-subscription | grep token'
+  status, out, err = shared.execute_command(
+      'Checking for pubsub tokens', cmd, stream_output_in_debug=False)
+  token = None
+  if status == 0:
+    token = out.strip().split('=')[1]
+  return token
+  
+
 def _get_regions(project_id):
   gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
   cmd = f'{gcloud} app describe --verbosity critical --project={project_id}'
@@ -124,6 +135,9 @@ def _default_stage_context(stage_name):
       string.ascii_lowercase + string.digits) for _ in range(16))
   random_token = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(32))
+  if _check_for_token() is not None:
+    random_token = _check_for_token()
+    print(random_token)
   region, sql_region = _get_regions(stage_name)
   return dict(
       project_id_gae=stage_name,
