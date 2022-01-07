@@ -767,8 +767,8 @@ def _get_config(stage_name):
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
-    'Come up with a unique namespace to keep things\n'
-    'organized (ie, acme_purchase_propensity)', type=str)
+    'Come up with a unique namespace to keep assets\n'
+    'organized (ie, acme_propensity)', type=str)
   _format_heading('GA Account ID', 'yellow')
   ga_account_id = click.prompt(
     'What the Google Analytics UA ID', default='UA-12345678-9')
