@@ -813,34 +813,24 @@ def instantbqml(stage_name, debug):
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   stage = shared.before_hook(stage, stage_name)
   training_file, prediction_file = pipelines._get_config(stage)
-  workdir = stage.workdir
   local_db_uri = stage.local_db_uri
   env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
-  copy_training_pipeline = (
-      f' cp cli/stages/{training_file} {workdir}/cli/stages/{training_file}')
-  copy_prediction_pipeline = (
-      f' cp cli/stages/{prediction_file} {workdir}/cli/stages/{prediction_file}')
-  shared.execute_command(
-      'Copying training pipeline', copy_training_pipeline,
-      cwd=constants.PROJECT_DIR, debug=debug)
-  shared.execute_command(
-      'Copying training pipeline', copy_prediction_pipeline,
-      cwd=constants.PROJECT_DIR, debug=debug)
+  install_required_packages(stage)
+  display_workdir(stage)
+  copy_src_to_workdir(stage)
+  download_cloud_sql_proxy(stage)
+  start_cloud_sql_proxy(stage)
+  install_python_packages(stage)
+  cmd_workdir = os.path.join(stage.workdir, 'backend')
   cmd = (
       ' . .venv_controller/bin/activate &&'
       f' {env_vars} python -m flask import-pipelines {training_file} &&'
       f' {env_vars} python -m flask import-pipelines {prediction_file}'
   )
-  cmd_workdir = os.path.join(stage.workdir, 'cli/stages')
   shared.execute_command(
-      'Importing training & prediction pipelines', cmd, cwd=cmd_workdir, debug=debug)
-  #cmd = (
-  #    f'cloudshell download-files "{training_file}"')
-  #shared.execute_command('Download training pipeline', cmd, debug=debug)
-  #time.sleep(5)
-  #cmd = (
-  #    f'cloudshell download-files "{prediction_file}"')
-  #shared.execute_command('Download prediction pipeline', cmd, debug=debug)
+      'Importing training & prediction pipelines', cmd,
+      cwd=cmd_workdir, debug=debug)
+  stop_cloud_sql_proxy(stage)
  
 @cli.command('begin')
 @click.option('--stage_name', type=str, default=None)
