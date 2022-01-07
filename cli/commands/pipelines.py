@@ -668,6 +668,7 @@ UA_PREDICTION_PIPELINE = """{{
 MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
                     'Event Propensity', 'Destination Propensity',
                     'Product Propensity']
+SEPARATOR = '---------------------------------------------'
 
 def _format_heading(label, color):
   centered = label.center(40)
@@ -777,7 +778,7 @@ def _get_config(stage_name):
   click.echo(
     'The custom dimension join key can be either\n'
     'the GA Client ID (cookie ID) or a unique User ID.\n'
-    '---------------------------------------------')
+    SEPARATOR)
   for i, id in enumerate(identifier):
     click.echo(f'{i + 1}) {id}')
   ind = click.prompt(
@@ -820,21 +821,19 @@ def _get_config(stage_name):
   click.echo(
     f'Create a placeholder custom dimension with\n'
     f'the same scope as the {join_key}\n'
-    f'---------------------------------------------')
+    SEPARATOR)
   imported_data = click.prompt(
     'What is the custom dimension index for the imported score', type=int)
   _format_heading('GA Dataset ID', 'yellow')
   msg = (
+    'Follow these steps to generate a GA Dataset ID:\n'
     '- Create a Google Analytics custom dataset\n'
     '- Use Query Time import behavior\n'
     '- Share with your GA360 BigQuery Enabled View (at least)\n'
     f'- Set the Key to the {join_key} custom dimension\n'
-    '- Set the Imported Data to the custom dimension placeholder\n')
+    '- Set the Imported Data to the custom dimension placeholder\n'
+    SEPARATOR)
   click.echo(msg)
-  confirmation = (
-    '---------------------------------------------\n'
-    'Did you complete these steps')
-  click.confirm(confirmation, default=True)
   ga_dataset_id = click.prompt(
     'What is the Google Analytics Dataset ID', type=str)
   ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
@@ -842,7 +841,7 @@ def _get_config(stage_name):
   click.echo(
     'Choose the destination for your Google Analytics audience.\n'
     'You can always add more destinations later.\n'
-    '---------------------------------------------')
+    SEPARATOR)
   for i, id in enumerate(ad_accounts):
     click.echo(f'{i + 1}) {id}')
   linked_ad_account = click.prompt(
