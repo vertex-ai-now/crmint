@@ -734,7 +734,7 @@ def _cloud_architecture(stage_name):
     _format_heading('GA360 Export Cloud project ID', 'blue')
     ga360_bigquery_export_project = click.prompt(
       'What is the Cloud Project ID for your GA360 BigQuery Export', type=str)
-    create_dataset = """CREATE SCHEMA IF NOT EXISTS {crmint_project}.{{% BQ_DATASET %}};\\r\\n""".format(
+    create_dataset = """CREATE SCHEMA IF NOT EXISTS `{crmint_project}.{{% BQ_DATASET %}}`;\\r\\n""".format(
         crmint_project=stage_name.project_id_gae)
   return ga360_bigquery_export_project, create_dataset, same_project
 
@@ -877,7 +877,7 @@ def _get_config(stage_name):
       f'{crmint_project}@appspot.gserviceaccount.com to the\n'
       f'Google Cloud Platform Project "{ga360_bigquery_export_project}", yet?')
     click.confirm(bq_permissions, default=True)
-  _format_heading('Completed', 'green')
+  _format_heading('Finished Instant BQML >> Importing Pipelines', 'green')
   training_params = """
     "params": [
         {{
