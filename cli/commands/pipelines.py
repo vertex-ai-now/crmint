@@ -783,35 +783,35 @@ def _get_config(stage_name):
   ind = click.prompt(
     'Enter the index for your join key', type=int) - 1
   join_key = identifier[ind]
-  scope = ['User or Session', 'Hit']
+  scopes = ['User or Session', 'Hit']
   _format_heading('GA Join Key scope', 'yellow')
-  for i, sc in enumerate(scope):
-    click.echo(f'{i + 1}) {sc}')
-  s = click.prompt(
+  for i, ss in enumerate(scope):
+    click.echo(f'{i + 1}) {s}')
+  scope_ind = click.prompt(
     f'Enter the index for your {join_key} scope', type=int) - 1
-  j = scope[s]
-  if id == 'User ID':
-    if j == "Hit":
+  scope = scopes[scope_ind]
+  if join_key == 'User ID':
+    if scope == "Hit":
       unnest_where_condition =  """\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n              AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) != '0'"""
       key = """(\\r\\n                  SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                  FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n                )"""
       repeat_partition_by_key = """(\\r\\n                                SELECT \\r\\n                                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                                FROM\\r\\n                                    UNNEST(hits) AS h,\\r\\n                                    UNNEST(h.customDimensions) AS cd\\r\\n                            )"""
       repeat_uid_key = """(\\r\\n                          SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                          FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        )"""
       repeat_unnest_where_condition = """\\r\\n                    AND (\\r\\n                        SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                        FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        ) IS NOT NULL\\r\\n                    AND (\\r\\n                        SELECT \\r\\n                            MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                        FROM\\r\\n                            UNNEST(hits) AS h,\\r\\n                            UNNEST(h.customDimensions) AS cd\\r\\n                        ) != '0'"""
-    if j == "User or Session":
+    if scope == "User or Session":
       unnest_where_condition = """\\r\\n              AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n              AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) != '0'"""
       key = """(\\r\\n                  SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                  FROM UNNEST(customDimensions)\\r\\n                )"""
       repeat_partition_by_key = """(\\r\\n                                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                                FROM UNNEST(customDimensions))"""
       repeat_uid_key = """(\\r\\n                          SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                          FROM UNNEST(customDimensions)\\r\\n                        )"""
       repeat_unnest_where_condition = """\\r\\n                        AND (\\r\\n                            SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                            FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n                        AND (\\r\\n                            SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                            FROM UNNEST(customDimensions)) != '0'"""
-  if id == 'GA Client ID':
+  if join_key == 'GA Client ID':
     unnest_where_condition = ""
     key = "GA.clientId"
     repeat_partition_by_key = "GA.clientId"
     repeat_uid_key = "GA.clientId"
     repeat_unnest_where_condition = ""
-  if j == 'User or Session':
+  if scope == 'User or Session':
     scope_query = """(\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT MAX(IF(index = {{% CD_USER_ID %}}, value, NULL))\\r\\n                FROM UNNEST(customDimensions)) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
-  if j == 'Hit':
+  if scope == 'Hit':
     scope_query = """(\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
   _format_heading('GA Custom Dimension Index - Join Key', 'yellow')
   cd_user_id = click.prompt(
