@@ -785,7 +785,7 @@ def _get_config(stage_name):
   join_key = identifier[ind]
   scopes = ['User or Session', 'Hit']
   _format_heading('GA Join Key scope', 'yellow')
-  for i, ss in enumerate(scopes):
+  for i, s in enumerate(scopes):
     click.echo(f'{i + 1}) {s}')
   scope_ind = click.prompt(
     f'Enter the index for your {join_key} scope', type=int) - 1
