@@ -852,7 +852,7 @@ def _get_config(stage_name):
     f'What is the account ID for the {ad_accounts[linked_ad_account]} account', type=str)
   _format_heading('Acknowledgments', 'red')
   cloud_storage = (
-    f'Did you create a bucket in Cloud Storage named {bq_namespace}, yet?')
+    f'Did you create a bucket in Cloud Storage named "{bq_namespace}", yet?')
   click.confirm(cloud_storage, default=True)
   click.echo('--------------------------------------------')
   sa = f'{stage_name.project_id_gae}@appspot.gserviceaccount.com'
@@ -863,8 +863,8 @@ def _get_config(stage_name):
   click.echo('--------------------------------------------')
   storage_object_admin = (
     f'Did you give storage object admin permissions to the\n'
-    f'App Engine default service account\n'
-    f'for the Cloud Storage bucket named {bq_namespace}, yet?')
+    f'App Engine default service account for the\n'
+    f'Cloud Storage bucket named "{bq_namespace}", yet?')
   click.confirm(storage_object_admin, default=True)
   edit_permissions = (
     f'Did you add edit permissions for the\n'
