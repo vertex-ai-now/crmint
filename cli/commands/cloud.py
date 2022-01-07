@@ -102,6 +102,17 @@ def grant_cloud_build_permissions(stage, debug=False):
   shared.execute_command("Grant Cloud Build permissions", cmd, debug=debug)
 
 
+def grant_app_engine_default_service_account_permissions(stage, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+    f'{GCLOUD} projects add-iam-policy-binding {project_id}'
+    f' --member="serviceAccount:{project_id}@appspot.gserviceaccount.com"'
+    f' --role="roles/editor"'
+  )
+  shared.execute_command(
+      "Grant App Engine default service account permissions", cmd, debug=debug)    
+
+
 def _check_if_cloudsql_instance_exists(stage, debug=False):
   project_id = stage.project_id_gae
   db_instance_name = stage.db_instance_name
@@ -596,6 +607,7 @@ def setup(stage_name, debug):
       activate_services,
       create_appengine,
       grant_cloud_build_permissions,
+      grant_app_engine_default_service_account_permissions,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
       create_cloudsql_database_if_needed,
@@ -625,6 +637,7 @@ def _setup(stage_name, debug=False):
       activate_services,
       create_appengine,
       grant_cloud_build_permissions,
+      grant_app_engine_default_service_account_permissions,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
       create_cloudsql_database_if_needed,
