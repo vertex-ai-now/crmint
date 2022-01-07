@@ -672,7 +672,7 @@ MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
 def _format_heading(label, color):
   centered = label.center(54)
   msg = click.style('======================================================', fg=color)
-  msg += click.style(f'= {centered} =', fg=color, bold=True))
+  msg += click.style(f'= {centered} =', fg=color, bold=True)
   msg += click.style('======================================================', fg=color)
   click.echo(msg)
 
