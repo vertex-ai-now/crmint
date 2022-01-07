@@ -728,19 +728,15 @@ def _cloud_architecture(stage_name):
   else:
     same_project = False
   if same_project:
-    crmint_project = stage_name.project_id_gae
     ga360_bigquery_export_project = stage_name.project_id_gae
     create_dataset = '';
   else:
     _format_heading('GA360 Export Cloud project ID', 'blue')
     ga360_bigquery_export_project = click.prompt(
       'What is the Cloud Project ID for your GA360 BigQuery Export', type=str)
-    _format_heading('CRMint Cloud project ID', 'blue')
-    crmint_project = click.prompt(
-      'What is the Cloud Project ID for your CRMint application?', type=str)
     create_dataset = """CREATE SCHEMA IF NOT EXISTS {crmint_project}.{{% BQ_DATASET %}};\\r\\n""".format(
         crmint_project=crmint_project)
-  return crmint_project, ga360_bigquery_export_project, create_dataset, same_project
+  return ga360_bigquery_export_project, create_dataset, same_project
 
 def _bigquery_config():
   _format_heading('BigQuery Dataset ID', 'blue')
@@ -754,6 +750,7 @@ def _bigquery_config():
 def _get_config(stage_name):
   cid = 'clientId'
   product_dimension = ''
+  crmint_project = stage_name.project_id_gae
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives()
   objective = MODEL_OBJECTIVES[mo]
@@ -763,7 +760,7 @@ def _get_config(stage_name):
     destination_url = _destination_propensity_config()
   if objective == 'Product Propensity':
     product, product_dimension = _product_propensity_config()
-  crmint_project, ga360_bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
+  ga360_bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
@@ -873,7 +870,7 @@ def _get_config(stage_name):
   click.confirm(edit_permissions, default=True)
   if not same_project:
     bq_permissions = (
-      f'Did you add:\n'
+      f'\nDid you add:\n'
       f'  1) BigQuery Data Viewer &\n'
       f'  2) BigQuery User\n'
       f'permissions for the App Engine default service account\n'
@@ -907,7 +904,7 @@ def _get_config(stage_name):
           "name": "BQ_DATASET_LOCATION",
           "value": "{bq_dataset_location}"
         }}""".format(
-      bq_project_id=stage_name.project_id_gae,
+      bq_project_id=crmint_project,
       bq_dataset_id=bq_dataset_id,
       bq_namespace=bq_namespace,
       bq_dataset_location=bq_dataset_location,
@@ -965,7 +962,7 @@ def _get_config(stage_name):
         "name": "BQ_DATASET_LOCATION",
         "value": "{bq_dataset_location}"
       }}""".format(
-        bq_project_id=stage_name.project_id_gae,
+        bq_project_id=crmint_project,
         bq_dataset_id=bq_dataset_id,
         bq_namespace=bq_namespace,
         bq_dataset_location=bq_dataset_location,
