@@ -855,10 +855,11 @@ def _get_config(stage_name):
     f'Did you create a bucket in Cloud Storage named {bq_namespace}, yet?')
   click.confirm(cloud_storage, default=True)
   click.echo('--------------------------------------------')
+  sa = f'{stage_name.project_id_gae}@appspot.gserviceaccount.com'
   msg = (
-      f'Your App Engine default service account is:\n'
-      f'{stage_name.project_id_gae}@appspot.gserviceaccount.com')
-  click.echo(click.style(msg, fg='cyan'))
+      f'Your App Engine default service account is:)
+  click.echo(msg)
+  click.echo(click.style(sa, fg='cyan'))
   click.echo('--------------------------------------------')
   storage_object_admin = (
     f'Did you give storage object admin permissions to the\n'
