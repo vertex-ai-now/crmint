@@ -670,10 +670,10 @@ MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
                     'Product Propensity']
 
 def _format_heading(label, color):
-  centered = label.center(54)
-  msg = click.style('======================================================', fg=color)
-  msg += click.style(f'= {centered} =', fg=color, bold=True)
-  msg += click.style('======================================================', fg=color)
+  centered = label.center(40)
+  msg = click.style('============================================\n', fg=color)
+  msg += click.style(f'= {centered} =\n', fg=color, bold=True)
+  msg += click.style('============================================', fg=color)
   click.echo(msg)
 
 def _model_objectives():
@@ -721,8 +721,8 @@ def _product_propensity_config():
 def _cloud_architecture(stage_name):
   _format_heading('Cloud Architecture', 'blue')
   msg = (
-    f'Is the GA360 BigQuery Export located in the same Google Cloud\n'
-    f'Project as the CRMint application')
+    f'Is the GA360 BigQuery Export located in the\n'
+    f'same Google Cloud Project as the CRMint application')
   if click.confirm(msg, default=True):
     same_project = True
   else:
@@ -763,28 +763,31 @@ def _get_config(stage_name):
     destination_url = _destination_propensity_config()
   if objective == 'Product Propensity':
     product, product_dimension = _product_propensity_config()
-  bq_dataset_id, bq_dataset_location = _bigquery_config()
   crmint_project, ga360_bigquery_export_project, create_dataset = _cloud_architecture(stage_name)
+  bq_dataset_id, bq_dataset_location = _bigquery_config()
   _format_heading('Namespace', 'blue')
   bq_namespace = click.prompt(
-    'Come up with a unique namespace to keep things'
-    ' organized (ie, acme_purchase_propensity)', type=str)
+    'Come up with a unique namespace to keep things\n'
+    'organized (ie, acme_purchase_propensity)', type=str)
   _format_heading('GA Account ID', 'yellow')
   ga_account_id = click.prompt(
     'What the Google Analytics UA ID', default='UA-12345678-9')
   identifier = ['GA Client ID', 'User ID']
   _format_heading('Join Key type', 'yellow')
+  click.echo(
+    'The custom dimension join key can be either\n'
+    'the GA Client ID (cookie ID) or a unique User ID.')
   for i, id in enumerate(identifier):
     click.echo(f'{i + 1}) {id}')
-  _id = click.prompt(
+  ind = click.prompt(
     'Enter the index for your join key', type=int) - 1
-  id = identifier[_id]
+  join_key = identifier[ind]
   scope = ['User or Session', 'Hit']
   _format_heading('Join Key scope', 'yellow')
   for i, sc in enumerate(scope):
     click.echo(f'{i + 1}) {sc}')
   s = click.prompt(
-    'Enter the index for your Join Key scope', type=int) - 1
+    f'Enter the index for your {join_key} scope', type=int) - 1
   j = scope[s]
   if id == 'User ID':
     if j == "Hit":
@@ -811,24 +814,34 @@ def _get_config(stage_name):
     scope_query = """(\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) AS custom_dimension_userId\\r\\n        FROM `{ga360_bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*`\\r\\n        WHERE\\r\\n            _TABLE_SUFFIX BETWEEN FORMAT_DATE(\\r\\n                '%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n              ) IS NOT NULL\\r\\n            AND (\\r\\n                SELECT \\r\\n                    MAX(IF(cd.index = {{% CD_USER_ID %}}, cd.value, NULL)) \\r\\n                FROM\\r\\n                    UNNEST(hits) AS h,\\r\\n                    UNNEST(h.customDimensions) AS cd\\r\\n            ) != '0'\\r\\n        GROUP BY 1, 2\\r\\n    )""".format(ga360_bigquery_export_project=ga360_bigquery_export_project)
   _format_heading('GA Custom Dimension Index - Join Key', 'yellow')
   cd_user_id = click.prompt(
-    f'What is the custom dimension index for the {id}', type=int)
-  _format_heading('GA Custom Dimension Index - Imported Data', 'yellow')
+    f'What is the custom dimension index for the {join_key}', type=int)
+  _format_heading('GA Custom Dimension Index - Score', 'yellow')
   imported_data = click.prompt(
-    'What is the custom dimension index for the imported data', type=int)
+    'What is the custom dimension index for the imported score', type=int)
   _format_heading('GA Dataset ID', 'yellow')
+  msg = (
+    '- Create a Google Analytics custom dataset\n'
+    '- Use Query Time data import\n'
+    '- Share with your GA360 BigQuery Enabled View (at least)\n'
+    '- Set the Key to the GA Client ID or User ID custom dimension\n'
+    '- Set the Imported Data to the custom dimension placeholder for the imported score')
+  click.confirm(msg, default=True)
   ga_dataset_id = click.prompt(
     'What is the Google Analytics Dataset ID', type=str)
   ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
-  _format_heading('Linked Ad Account Type', 'green')
+  _format_heading('Audience Destination', 'green')
+  click.echo(
+    'Choose the destination for your Google Analytics audience.\n'
+    'You can always add more destinations later.')
   for i, id in enumerate(ad_accounts):
     click.echo(f'{i + 1}) {id}')
   linked_ad_account = click.prompt(
-    'Enter the index for the linked ad account type', type=int) - 1
+    'Enter the index for the audience destination', type=int) - 1
   linked_ad_account_types = {'0': 'DBM_LINKS', '1': 'ADWORDS_LINKS', '2': 'MCC_LINKS'}
   linked_ad_account_type = linked_ad_account_types[str(linked_ad_account)]
-  _format_heading('Linked Ad Account ID', 'green')
+  _format_heading('Audience Destination ID', 'green')
   linked_ad_account_id = click.prompt(
-    'What is the account ID for the linked ad account', type=str)
+    f'What is the account ID for the {linked_ad_account_type} account', type=str)
   training_params = """
     "params": [
         {{
