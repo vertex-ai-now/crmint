@@ -857,7 +857,7 @@ def _get_config(stage_name):
   click.echo('--------------------------------------------')
   sa = f'{stage_name.project_id_gae}@appspot.gserviceaccount.com'
   msg = (
-      f'Your App Engine default service account is:)
+      f'Your App Engine default service account is:')
   click.echo(msg)
   click.echo(click.style(sa, fg='cyan'))
   click.echo('--------------------------------------------')
