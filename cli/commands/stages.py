@@ -135,9 +135,9 @@ def _default_stage_context(stage_name):
       string.ascii_lowercase + string.digits) for _ in range(16))
   random_token = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(32))
-  if _check_for_token() is not None:
-    random_token = _check_for_token()
-    print(random_token)
+  previous_token = _check_for_token()
+  if previous_token is not None:
+    random_token = previous_token
   region, sql_region = _get_regions(stage_name)
   return dict(
       project_id_gae=stage_name,
