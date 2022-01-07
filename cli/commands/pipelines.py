@@ -829,10 +829,12 @@ def _get_config(stage_name):
     '- Use Query Time import behavior\n'
     '- Share with your GA360 BigQuery Enabled View (at least)\n'
     f'- Set the Key to the {join_key} custom dimension\n'
-    '- Set the Imported Data to the custom dimension placeholder\n'
-    'Did you complete all these steps'
-    '---------------------------------------------')
-  click.confirm(msg, default=True)
+    '- Set the Imported Data to the custom dimension placeholder\n')
+  click.echo(msg)
+  confirmation = (
+    '---------------------------------------------\n'
+    'Did you complete these steps')
+  click.confirm(confirmation, default=True)
   ga_dataset_id = click.prompt(
     'What is the Google Analytics Dataset ID', type=str)
   ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
