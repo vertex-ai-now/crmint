@@ -735,7 +735,7 @@ def _cloud_architecture(stage_name):
     ga360_bigquery_export_project = click.prompt(
       'What is the Cloud Project ID for your GA360 BigQuery Export', type=str)
     create_dataset = """CREATE SCHEMA IF NOT EXISTS {crmint_project}.{{% BQ_DATASET %}};\\r\\n""".format(
-        crmint_project=crmint_project)
+        crmint_project=stage_name.project_id_gae)
   return ga360_bigquery_export_project, create_dataset, same_project
 
 def _bigquery_config():
