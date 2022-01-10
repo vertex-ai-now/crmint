@@ -1,6 +1,7 @@
 import os
 import click
 from cli.utils import constants
+import datetime
 
 GA4_TRAINING_PIPELINE = """{{
   {training_params}
@@ -39,7 +40,7 @@ GA4_TRAINING_PIPELINE = """{{
       "name": "{training_name}"
       }}
   ],
-  "name": "{pipeline_name} (GA4)",
+  "name": "{pipeline_name} (GA4) [{creation_time}]",
   "schedules": [
       {{
           "cron": "0 0 * * 0"
@@ -262,7 +263,7 @@ GA4_PREDICTION_PIPELINE = """{{
         "name": "Send Events to GA4"
       }}
     ],
-  "name": "{pipeline_name} (GA4)",
+  "name": "{pipeline_name} (GA4) [{creation_time}]",
   "schedules": [
     {{
       "cron": "0 0 * * *"
@@ -351,7 +352,7 @@ UA_TRAINING_PIPELINE = """{{
         "name": "{training_name}"
       }}
     ],
-    "name": "{training_pipeline_name} - Audiences",
+    "name": "{training_pipeline_name} - Audiences [{creation_time}]",
     "schedules": [
       {{
         "cron": "0 0 * * 0"
@@ -961,7 +962,7 @@ UA_PREDICTION_PIPELINE = """{{
         "name": "Update GA Audiences"
       }}
     ],
-    "name": "{prediction_pipeline_name} - Audiences",
+    "name": "{prediction_pipeline_name} - Audiences [{creation_time}]",
     "schedules": [
     {{
         "cron": "0 0 * * * *  "
@@ -1091,6 +1092,7 @@ def _get_ga4_config(stage_name):
   table_suffix = 'events_'
   optimize_objective = 'ecommerce.purchase_revenue > 0'
   crmint_project = stage_name.project_id_gae
+  creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = """\\r\\n        MODEL_TYPE = 'AUTOML_REGRESSOR',\\r\\n        INPUT_LABEL_COLS = ['will_convert_later'],\\r\\n        BUDGET_HOURS = 3.0"""  
   mo = _model_objectives(GA4_MODEL_OBJECTIVES)
   objective = GA4_MODEL_OBJECTIVES[mo]
@@ -1168,13 +1170,15 @@ def _get_ga4_config(stage_name):
     training_query=training_query,
     crmint_project=crmint_project,
     training_name=training_name,
-    pipeline_name=training_pipeline_name)
+    pipeline_name=training_pipeline_name,
+    creation_time=creation_time)
   prediction = GA4_PREDICTION_PIPELINE.format(
     prediction_params=ga4_params,
     prediction_query=prediction_query,
     crmint_project=crmint_project,
     extract_query=extract_query,
-    pipeline_name=prediction_pipeline_name)
+    pipeline_name=prediction_pipeline_name,
+    creation_time=creation_time)
   training_filename = 'ga4_training_pipeline.json'
   prediction_filename = 'ga4_prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
@@ -1190,6 +1194,7 @@ def _get_ua_config(stage_name):
   product_dimension = ''
   cd_scope_query = ''
   crmint_project = stage_name.project_id_gae
+  creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives(UA_MODEL_OBJECTIVES)
   objective = UA_MODEL_OBJECTIVES[mo]
@@ -1512,7 +1517,8 @@ def _get_ua_config(stage_name):
      training_query=training_query,
      crmint_project=crmint_project,
      training_name=training_name,
-     training_pipeline_name=training_pipeline_name)
+     training_pipeline_name=training_pipeline_name,
+     creation_time=creation_time)
   prediction = UA_PREDICTION_PIPELINE.format(
     prediction_query=prediction_query,
     prediction_params=prediction_params,
@@ -1522,7 +1528,8 @@ def _get_ua_config(stage_name):
     linked_account_type=linked_ad_account_type,
     cid=cid,
     scope_query=scope_query,
-    model_objective=objective)
+    model_objective=objective,
+    creation_time=creation_time)
   training_filename = 'training_pipeline.json'
   prediction_filename = 'prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
