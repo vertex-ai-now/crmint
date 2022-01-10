@@ -218,7 +218,8 @@ def _get_existing_pubsub_entities(stage, entities, debug=False):
       f' | grep -P ^name:'
   )
   _, out, _ = shared.execute_command(
-      f'Fetching list of PubSub {entities}', cmd, debug=debug)
+      f'Fetching list of PubSub {entities}', cmd, debug=debug,
+      silent_error=True)
   lines = out.strip().split('\n')
   entities = [l.split('/')[-1] for l in lines]
   return entities
