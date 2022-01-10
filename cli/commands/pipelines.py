@@ -1120,6 +1120,7 @@ def _get_ga4_config(stage_name):
   if ga_bigquery_frequency == 'Streaming Only':
     table_suffix = 'events_intraday_'
   if not same_project:
+    _format_heading('Acknowledgments', 'red')
     bq_permissions = (
       f'\nDid you add:\n'
       f'  1) BigQuery Data Viewer &\n'
