@@ -27,7 +27,7 @@ from cli.utils import spinner
 
 def execute_command(step_name, command, cwd='.', report_empty_err=True,
                     debug=False, stream_output_in_debug=True, force_std_out=False,
-                    silent_step_name=False):
+                    silent_step_name=False, silent_error=False):
   """
   Wrapper that runs a shell command and captures if needed the standard outputs.
 
@@ -41,6 +41,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     force_std_out: Boolean to display everything that the command would have displayed
         if run in a terminal.
     silent_step_name: Boolean to display the step_name.
+    silent_error: Boolean to display errors.
   """
   assert isinstance(command, str)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
@@ -64,7 +65,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     click.echo("\n", nl=False)
   if debug and not stream_output_in_debug:
     click.echo(out)
-  if not silent_step_name:
+  if not silent_error:
     if pipe.returncode != 0 and err and (len(err) > 0 or report_empty_err):
       msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
       click.echo(click.style(msg, fg="red", bold=True))
