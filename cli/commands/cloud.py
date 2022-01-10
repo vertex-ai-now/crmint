@@ -812,7 +812,20 @@ def instantbqml(stage_name, debug):
   click.echo(msg)                                                                                                                    
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   stage = shared.before_hook(stage, stage_name)
-  training_file, prediction_file = pipelines._get_config(stage)
+  platforms = ['GA4', 'Universal Analytics']
+  click.echo(
+    'Instant BQML is available for both GA4 & Universal Analytics\n'
+    'Google Analytics property types.\n'
+    '--------------------------------------------')
+  for i, p in enumerate(platforms):
+    click.echo(f'{i + 1}) {p}')
+  ind = click.prompt(
+    'Enter the index for the Google Analytics property type', type=int) - 1
+  platform = platforms[ind]
+  if platform == 'GA4':
+    training_file, prediction_file = pipelines._get_ga4_config(stage)
+  if platform == 'Universal Analytics':
+    training_file, prediction_file = pipelines._get_ua_config(stage)
   local_db_uri = stage.local_db_uri
   env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
   install_required_packages(stage)
