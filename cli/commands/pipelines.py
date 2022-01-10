@@ -39,7 +39,7 @@ GA4_TRAINING_PIPELINE = """{{
       "name": "{training_name}"
       }}
   ],
-  "name": "{pipeline_name}",
+  "name": "{pipeline_name} (GA4)",
   "schedules": [
       {{
           "cron": "0 0 * * 0"
@@ -262,7 +262,7 @@ GA4_PREDICTION_PIPELINE = """{{
         "name": "Send Events to GA4"
       }}
     ],
-  "name": "{pipeline_name}",
+  "name": "{pipeline_name} (GA4)",
   "schedules": [
     {{
       "cron": "0 0 * * *"
@@ -270,8 +270,8 @@ GA4_PREDICTION_PIPELINE = """{{
   ]
 }}""".strip()
 
-GA4_PARAMS = """"
-  params": [
+GA4_PARAMS = """
+  "params": [
     {{
         "type": "text",
         "name": "BQ_PROJECT",
