@@ -616,7 +616,7 @@ def setup(stage_name, debug):
       create_pubsub_subscriptions,
       grant_pubsub_permissions,
       create_scheduler_job,
-      download_config_files,
+      #download_config_files,
   ]
   for component in components:
     component(stage, debug=debug)
