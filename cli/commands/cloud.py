@@ -88,8 +88,9 @@ def display_appengine_hostname(stage, debug=False):
     hostname = out.split(':')[1].strip()
   except IndexError:
     click.echo('     No App Engine hostname found')
-  click.echo(click.style(
-      f'Visit your CRMint app at https://{hostname}', fg='green', bold=True))
+  click.echo(
+    f'Visit your CRMint app at:')
+  click.echo(click.style(f'https://{hostname}', fg='bright_blue', bold=True))
 
 def create_appengine(stage, debug=False):
   if _check_if_appengine_instance_exists(stage, debug=debug):
