@@ -75,7 +75,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
   return pipe.returncode, out, err
 
 
-def get_default_stage_name(debug=False):
+def get_default_stage_name(debug=False, silent_step_name=False):
   """
   Computes the default stage filename, derived from the GCP project name.
 
@@ -85,11 +85,14 @@ def get_default_stage_name(debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} config get-value project 2>/dev/null".format(
       gcloud_bin=gcloud_command)
-  status, out, err = execute_command("Get current project identifier", command, debug=debug, stream_output_in_debug=False)
+  status, out, err = execute_command(
+    "Get current project identifier", command, debug=debug, stream_output_in_debug=False,
+    silent_step_name=silent_step_name)
   if status != 0:
     exit(1)
   stage_name = out.strip()
-  click.echo("     Project ID found: %s" % stage_name)
+  if not silent_step_name:
+    click.echo("     Project ID found: %s" % stage_name)
   return stage_name
 
 
