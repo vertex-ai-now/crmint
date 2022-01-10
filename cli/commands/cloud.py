@@ -74,6 +74,22 @@ def _check_if_appengine_instance_exists(stage, debug=False):
       cmd, report_empty_err=False, debug=debug)
   return status == 0
 
+def display_appengine_hostname(stage, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+      f'{GCLOUD} app describe --project={project_id}'
+      f' | grep defaultHostname'
+  )
+  _, out, _ = shared.execute_command(
+      'Getting App Engine hostname',
+      cmd, report_empty_err=False, debug=debug,
+      silent_step_name=True, silent_error=True)
+  try:
+    hostname = out.split(':')[1].strip()
+  except IndexError:
+    click.echo('     No App Engine hostname found')
+  click.echo(click.style(
+      f'Visit your CRMint app at {hostname}', fg='green', bold=True))
 
 def create_appengine(stage, debug=False):
   if _check_if_appengine_instance_exists(stage, debug=debug):
@@ -706,6 +722,7 @@ def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
         install_python_packages,
         run_db_migrations,
         stop_cloud_sql_proxy,
+        display_appengine_hostname,
     ])
 
   for component in components:
@@ -757,6 +774,7 @@ def _deploy(stage_name, debug=False, frontend=False, controller=False, jobs=Fals
         install_python_packages,
         run_db_migrations,
         stop_cloud_sql_proxy,
+        display_appengine_hostname,
     ])
 
   for component in components:
