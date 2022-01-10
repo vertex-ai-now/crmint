@@ -96,7 +96,8 @@ def _check_for_token():
   gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
   cmd = f'{gcloud} pubsub subscriptions describe crmint-start-pipeline-subscription | grep token'
   status, out, err = shared.execute_command(
-      'Checking for pubsub tokens', cmd, stream_output_in_debug=False)
+    'Checking for pubsub tokens', cmd,
+    stream_output_in_debug=False, silent_step_name=True)
   token = None
   if status == 0:
     token = out.strip().split('=')[1]
