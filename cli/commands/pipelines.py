@@ -1149,7 +1149,7 @@ def _get_ga4_config(stage_name):
   extract_query = GA4_EXTRACT_QUERY.format(
     table_suffix=table_suffix,
     ga4_bigquery_export_project=bigquery_export_project,
-    model_objective=objecive,
+    model_objective=objective,
     crmint_project=crmint_project)
   training_query = GA4_TRAINING_QUERY.format(
     create_dataset=create_dataset,
