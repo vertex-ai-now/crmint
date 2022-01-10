@@ -987,7 +987,7 @@ def _model_objectives(model_objectives):
   return click.prompt(
     'Enter the index of the marketing objective', type=int) - 1
 
-def _event_propensity_config():
+def _ua_event_propensity_config():
   _format_heading('Event Details', 'green')
   event_category = click.prompt(
     'What is the event category (required)', type=str)
@@ -996,6 +996,12 @@ def _event_propensity_config():
   event_label = click.prompt(
     'What is the event label (optional - press enter to skip)', default='.*?')
   return event_category, event_action, event_label
+
+def _ga4_event_propensity_config():
+  _format_heading('Event Details', 'green')
+  event_name = click.prompt(
+    'What is the event name', type=str)
+  return event_name
 
 def _destination_propensity_config():
   _format_heading('Destination Details', 'green')
@@ -1082,10 +1088,14 @@ def _check_ga_account_id(ga_id):
 
 def _get_ga4_config(stage_name):
   cid = 'user_pseudo_id'
+  table_suffix = 'events_'
+  optimize_objective = 'ecommerce.purchase_revenue > 0'
   crmint_project = stage_name.project_id_gae
   model_options = """\\r\\n        MODEL_TYPE = 'AUTOML_REGRESSOR',\\r\\n        INPUT_LABEL_COLS = ['will_convert_later'],\\r\\n        BUDGET_HOURS = 3.0"""  
   mo = _model_objectives(GA4_MODEL_OBJECTIVES)
   objective = GA4_MODEL_OBJECTIVES[mo]
+  if objective == 'Event Propensity':
+    event_name = _ga4_event_propensity_config()
   bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
   bq_dataset_id, bq_dataset_location = _bigquery_config()
   _format_heading('Namespace', 'magenta')
@@ -1105,7 +1115,73 @@ def _get_ga4_config(stage_name):
   ind = click.prompt(
     'Enter the index for your GA BigQuery frequency', type=int) - 1
   ga_bigquery_frequency = frequencies[ind]
+  if ga_bigquery_frequency == 'Streaming':
+    table_suffix = 'events_intraday_'
+  if not same_project:
+    bq_permissions = (
+      f'\nDid you add:\n'
+      f'  1) BigQuery Data Viewer &\n'
+      f'  2) BigQuery User\n'
+      f'permissions for the App Engine default service account\n'
+      f'{crmint_project}@appspot.gserviceaccount.com to the\n'
+      f'Google Cloud Platform Project "{bigquery_export_project}", yet?')
+    click.confirm(bq_permissions, default=True)
   _format_heading('Done >>>> Importing Pipelines', 'green')
+  ga4_params = GA4_PARAMS.format(
+    bq_project_id=crmint_project,
+    bq_dataset_id=bq_dataset_id,
+    bq_namespace=bq_namespace,
+    bq_dataset_location=bq_dataset_location,
+    ga_measurement_id=ga_measurement_id,
+    ga_api_secret=ga_api_secret)
+  if objective == 'Event Propensity':
+    event_params = """,
+      {{
+        "type": "text",
+        "name": "EVENT_NAME",
+        "value": "{event_name}"
+      }}""".format(event_name=event_name)
+    ga4_params += event_params
+    optimize_objective = """REGEXP_CONTAINS(event_name, '(?i){{% EVENT_NAME %}}')"""
+  prediction_pipeline_name = f'{objective} Prediction Pipeline'
+  training_pipeline_name = f'{objective} Training Pipeline'
+  training_name = f'{objective} Training'
+  extract_query = GA4_EXTRACT_QUERY.format(
+    table_suffix=table_suffix,
+    ga4_bigquery_export_project=bigquery_export_project,
+    model_objective=objecive,
+    crmint_project=crmint_project)
+  training_query = GA4_TRAINING_QUERY.format(
+    create_dataset=create_dataset,
+    crmint_project=crmint_project,
+    model_options=model_options,
+    objective=optimize_objective,
+    ga4_bigquery_export_project=bigquery_export_project)
+  prediction_query = GA4_PREDICTION_QUERY.format(
+    crmint_project=crmint_project,
+    objective=optimize_objective,
+    ga4_bigquery_export_project=bigquery_export_project)
+  training = GA4_TRAINING_PIPELINE.format(
+    training_params=ga4_params,
+    training_query=training_query,
+    crmint_project=crmint_project,
+    training_name=training_name,
+    pipeline_name=training_pipeline_name)
+  prediction = GA4_PREDICTION_PIPELINE.format(
+    prediction_params=ga4_params,
+    prediction_query=prediction_query,
+    crmint_project=crmint_project,
+    extract_query=extract_query,
+    pipeline_name=prediction_pipeline_name)
+  training_filename = 'ga4_training_pipeline.json'
+  prediction_filename = 'ga4_prediction_pipeline.json'
+  training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
+  with open(training_filepath, 'w+') as fp:
+    fp.write(training)
+  prediction_filepath = os.path.join(constants.STAGE_DIR, prediction_filename)
+  with open(prediction_filepath, 'w+') as fp:
+    fp.write(prediction)
+  return training_filepath, prediction_filepath
       
 def _get_ua_config(stage_name):
   cid = 'clientId'
@@ -1116,7 +1192,7 @@ def _get_ua_config(stage_name):
   mo = _model_objectives(UA_MODEL_OBJECTIVES)
   objective = UA_MODEL_OBJECTIVES[mo]
   if objective == 'Event Propensity':
-    event_category, event_action, event_label = _event_propensity_config()
+    event_category, event_action, event_label = _ua_event_propensity_config()
   if objective == 'Destination Propensity':
     destination_url = _destination_propensity_config()
   if objective == 'Product Propensity':
