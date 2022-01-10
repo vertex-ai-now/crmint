@@ -97,10 +97,12 @@ def _check_for_token():
   cmd = f'{gcloud} pubsub subscriptions describe crmint-start-pipeline-subscription | grep token'
   status, out, err = shared.execute_command(
     'Checking for pubsub tokens', cmd,
-    stream_output_in_debug=False, silent_step_name=True)
+    stream_output_in_debug=False, silent_error=True)
   token = None
   if status == 0:
     token = out.strip().split('=')[1]
+  else:
+    click.echo('     No pubsub tokens generated yet.')
   return token
   
 
