@@ -58,7 +58,7 @@ EOF
 # Restores initial directory.
 cd "$CURRENT_DIR"
 
+source $HOME/.bashrc
+
 # Begin CRMint combined deployment
 crmint cloud begin
-
-exec bash
