@@ -24,7 +24,8 @@ def bqml(stage_name, debug):
   msg += click.style(" \$$$$$$ \$$   \$$  \$$$$$$    \$$    \$$   \$$ \$$   \$$    \$$          \$$$$$$$   \$$$$$$\ \$$      \$$ \$$$$$$$$\n", fg='bright_green')
   msg += click.style("                                                                                        \$$$", fg='bright_green')
   click.echo(msg)                                                                                                                    
-  stage_name, stage = cloud.fetch_stage_or_default(stage_name, debug=debug)
+  stage_name, stage = cloud.fetch_stage_or_default(
+    stage_name, debug=debug, silent_step_name=True)
   stage = shared.before_hook(stage, stage_name)
   platforms = ['GA4', 'Universal Analytics']
   click.echo(
