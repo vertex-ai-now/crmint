@@ -43,9 +43,10 @@ SUBSCRIPTIONS = {
 }
 
 
-def fetch_stage_or_default(stage_name=None, debug=False):
+def fetch_stage_or_default(stage_name=None, debug=False, silent_step_name=False):
   if not stage_name:
-    stage_name = shared.get_default_stage_name(debug=debug)
+    stage_name = shared.get_default_stage_name(
+      debug=debug, silent_step_name=silent_step_name)
   if not shared.check_stage_file(stage_name):
     click.echo(click.style(
         "Stage file '%s' not found." % stage_name, fg='red', bold=True))
