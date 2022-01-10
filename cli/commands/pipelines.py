@@ -227,7 +227,7 @@ GA4_PREDICTION_PIPELINE = """{{
           }},
           {{
             "description": null,
-            "value": "{{\\n  \\"client_id\\": \\"%(client_id)s\\",\\n  \\"timestamp_micros\\": \\"%(event_timestamp)s\\",\\n  \\"nonPersonalizedAds\\": false,\\n  \\"events\\": [\\n    {{\\n      \\"name\\": \\"post_score\\",\\n      \\"params\\": {\\n        \\"score\\": \\"%(score)s\\",\\n        \\"model_type\\": \\"%(model_type)s\\"\\n      }}\\n    }}\\n  ]\\n}}",
+            "value": "{{\\n  \\"client_id\\": \\"%(client_id)s\\",\\n  \\"timestamp_micros\\": \\"%(event_timestamp)s\\",\\n  \\"nonPersonalizedAds\\": false,\\n  \\"events\\": [\\n    {{\\n      \\"name\\": \\"post_score\\",\\n      \\"params\\": {{\\n        \\"score\\": \\"%(score)s\\",\\n        \\"model_type\\": \\"%(model_type)s\\"\\n      }}\\n    }}\\n  ]\\n}}",
             "label": "GA4 Measurement Protocol JSON template",
             "is_required": false,
             "type": "text",
