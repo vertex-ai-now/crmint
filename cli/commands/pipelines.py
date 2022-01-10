@@ -1115,7 +1115,7 @@ def _get_ga4_config(stage_name):
   ind = click.prompt(
     'Enter the index for your GA BigQuery frequency', type=int) - 1
   ga_bigquery_frequency = frequencies[ind]
-  if ga_bigquery_frequency == 'Streaming':
+  if ga_bigquery_frequency == 'Streaming Only':
     table_suffix = 'events_intraday_'
   if not same_project:
     bq_permissions = (
