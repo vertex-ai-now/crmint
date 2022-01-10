@@ -64,10 +64,11 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     click.echo("\n", nl=False)
   if debug and not stream_output_in_debug:
     click.echo(out)
-  if pipe.returncode != 0 and err and (len(err) > 0 or report_empty_err):
-    msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
-    click.echo(click.style(msg, fg="red", bold=True))
-    click.echo(click.style("Command: %s\n" % command, bold=False))
+  if not silent_step_name:
+    if pipe.returncode != 0 and err and (len(err) > 0 or report_empty_err):
+      msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
+      click.echo(click.style(msg, fg="red", bold=True))
+      click.echo(click.style("Command: %s\n" % command, bold=False))
   if out is not None:
     out = out.decode('utf-8')
   if err is not None:
