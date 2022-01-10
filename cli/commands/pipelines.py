@@ -1156,11 +1156,13 @@ def _get_ga4_config(stage_name):
     crmint_project=crmint_project,
     model_options=model_options,
     objective=optimize_objective,
-    ga4_bigquery_export_project=bigquery_export_project)
+    ga4_bigquery_export_project=bigquery_export_project,
+    table_suffix=table_suffix)
   prediction_query = GA4_PREDICTION_QUERY.format(
     crmint_project=crmint_project,
     objective=optimize_objective,
-    ga4_bigquery_export_project=bigquery_export_project)
+    ga4_bigquery_export_project=bigquery_export_project,
+    table_suffix=table_suffix)
   training = GA4_TRAINING_PIPELINE.format(
     training_params=ga4_params,
     training_query=training_query,
