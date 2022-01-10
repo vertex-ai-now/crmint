@@ -1144,7 +1144,7 @@ def _get_ga4_config(stage_name):
         "value": "{event_name}"
       }}""".format(event_name=event_name)
     ga4_params += event_params
-    optimize_objective = """REGEXP_CONTAINS(event_name, '(?i){{% EVENT_NAME %}}')"""
+    optimize_objective = """REGEXP_CONTAINS(event_name, '(?i){% EVENT_NAME %}')"""
   prediction_pipeline_name = f'{objective} Prediction Pipeline'
   training_pipeline_name = f'{objective} Training Pipeline'
   training_name = f'{objective} Training'
