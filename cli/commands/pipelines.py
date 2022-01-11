@@ -6,7 +6,8 @@ import datetime
 GA4_VERTEX_TRAINING_PIPELINE = """{{
   "name": "{pipeline_name} (GA4) [{creation_time}]",
   "jobs": [
-    "hash_start_conditions": [],
+    {{
+      "hash_start_conditions": [],
       "worker_class": "BQQueryLauncher",
       "params": [
         {{
@@ -129,7 +130,7 @@ GA4_VERTEX_TRAINING_PIPELINE = """{{
         }},
         {{
           "name": "region",
-          "value": "{project_region},
+          "value": "{project_region}",
           "label": "Region",
           "is_required": false,
           "type": "string",
