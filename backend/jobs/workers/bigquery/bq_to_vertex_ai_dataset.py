@@ -13,9 +13,10 @@
 # limitations under the License.
 
 from google.cloud import aiplatform
-from jobs.workers.worker import Worker, WorkerException
+#from jobs.workers.worker import Worker, WorkerException
+from jobs.workers.vertexai.vertex_ai_worker import VertexAIWorker
 
-class BQToVertexAIDataset(Worker):
+class BQToVertexAIDataset(VertexAIWorker):
   """Worker to export a BigQuery table to a Vertex AI dataset."""
 
   PARAMS = [
@@ -27,13 +28,6 @@ class BQToVertexAIDataset(Worker):
   ]
 
   aiplatform.init()
-
-  def _create_dataset(self, display_name, project_id, dataset_id, table_id):
-    dataset = aiplatform.TabularDataset.create(
-      display_name=display_name,
-      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
-    dataset.wait()
-    return dataset.resource_name
 
   def _execute(self):
     project_id = self._params['bq_project_id']
