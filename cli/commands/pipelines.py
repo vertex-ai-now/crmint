@@ -1122,7 +1122,7 @@ def _get_ga4_config(stage_name):
   if not same_project:
     _format_heading('Acknowledgments', 'red')
     bq_permissions = (
-      f'\nDid you add:\n'
+      f'Did you add:\n'
       f'  1) BigQuery Data Viewer &\n'
       f'  2) BigQuery User\n'
       f'permissions for the App Engine default service account\n'
