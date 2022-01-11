@@ -1335,7 +1335,7 @@ def _cloud_architecture(stage_name):
 def _bigquery_config():
   _format_heading('BigQuery Dataset ID', 'blue')
   bq_dataset_id = click.prompt(
-    'What is your BigQuery dataset ID', type=str).strip()
+    'What is your Google Analytics BigQuery dataset ID', type=str).strip()
   _format_heading('BigQuery Dataset Location', 'blue')
   bq_dataset_location = click.prompt(
     'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
