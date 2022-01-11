@@ -275,7 +275,7 @@ GA4_VERTEX_BATCH_PREDICT = """
         "condition": "success"
       }}
     ]
-  }}""".strip()
+  }},""".strip()
 
 GA4_TRAINING_PIPELINE = """{{
   {training_params}
