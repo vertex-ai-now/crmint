@@ -86,3 +86,10 @@ class VertexAIWorker(Worker):
       waiting_time += delay
     if job.state == js.JobState.JOB_STATE_FAILED:
       raise WorkerException(f'Job {job.name} failed.')
+      
+  def _create_dataset(self, display_name, project_id, dataset_id, table_id):
+    dataset = aiplatform.TabularDataset.create(
+      display_name=display_name,
+      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
+    dataset.wait()
+    return dataset.resource_name
