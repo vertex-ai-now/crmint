@@ -26,8 +26,16 @@ class BQToVertexAIDataset(Worker):
       ('vertex_ai_dataset_name', 'string', False, '', 'Vertex AI Dataset Name')
   ]
 
+  aiplatform.init()
+
+  def _create_dataset(self, display_name, project_id, dataset_id, table_id):
+    dataset = aiplatform.TabularDataset.create(
+      display_name=display_name,
+      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
+    dataset.wait()
+    return dataset.resource_name
+
   def _execute(self):
-    aiplatform.init()
     project_id = self._params['bq_project_id']
     dataset_id = self._params['bq_dataset_id']
     table_id = self._params['bq_table_id']
@@ -35,9 +43,6 @@ class BQToVertexAIDataset(Worker):
       display_name = f'{project_id}.{dataset_id}.{table_id}'
     else:
       display_name = self._params['vertex_ai_dataset_name']
-    dataset = aiplatform.TabularDataset.create(
-      display_name=display_name,
-      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
-    dataset.wait()
-    self.log_info(f'Dataset created: {dataset.resource_name}')
-    return
+    resource_name = self._create_dataset(
+      display_name, project_id, dataset_id, table_id)
+    self.log_info(f'Dataset created: {resource_name}')
