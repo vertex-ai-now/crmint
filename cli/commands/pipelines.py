@@ -3,7 +3,7 @@ import click
 from cli.utils import constants
 import datetime
 
-GA4_VERTEX_TRAINING_PIPELINE = """{{
+VERTEX_TRAINING_PIPELINE = """{{
   "name": "{pipeline_name} (GA4) [{creation_time}]",
   "jobs": [
     {{
@@ -195,9 +195,9 @@ GA4_VERTEX_TRAINING_PIPELINE = """{{
 }}""".strip()
 
 VERTEX_VALUE = """.value"""
-MAX_PREDICTION_TABLE = """  maxPrediction AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('predictions_') + 1) AS latest\\r\\n    FROM `{crmint_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE 'predictions_%'\\r\\n  ),\\r\\n"""
+MAX_PREDICTION_TABLE = """WITH\\r\\n  maxPrediction AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('predictions_') + 1) AS latest\\r\\n    FROM `{crmint_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE 'predictions_%'\\r\\n  )"""
 MAX_PREDICTION_WHERE = """predictions_*`\\r\\n    WHERE _TABLE_SUFFIX IN (SELECT latest FROM maxPrediction)\\r\\n"""
-VERTEX_TRAIN = """      EXCEPT (user_pseudo_id)\\r\\n"""
+GA4_VERTEX_TRAIN = """      EXCEPT (user_pseudo_id)\\r\\n"""
 VERTEX_PREDICT = ''
 GA4_VERTEX_FORMAT_QUERY = """#standardSQL\\r\\n{create_dataset}WITH \\r\\n      visitors_labeled AS ( \\r\\n          SELECT\\r\\n              user_pseudo_id, \\r\\n              MIN(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN event_timestamp END) AS event_session, \\r\\n              MIN(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN event_date END) AS event_date, \\r\\n              MAX(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN 1 \\r\\n                  ELSE 0 END) AS label\\r\\n          FROM \\r\\n              `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n          WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                  FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                  AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n          GROUP BY \\r\\n              user_pseudo_id\\r\\n      ),\\r\\n      user_model AS (\\r\\n          SELECT \\r\\n              GA.user_pseudo_id,\\r\\n              IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n              MAX(geo.city) AS city,\\r\\n              MAX(geo.region) AS region,\\r\\n              MAX(traffic_source.medium) AS medium,\\r\\n              MAX(traffic_source.source) AS source,\\r\\n              MAX(device.web_info.browser) AS browser,\\r\\n              COUNT(DISTINCT event_name) AS events,\\r\\n              MAX(event_name) AS common_events,\\r\\n              MAX(device.category) AS device_category,\\r\\n              MAX(device.operating_system) AS device_operating_system,\\r\\n              MAX(platform) AS platform\\r\\n          FROM \\r\\n              `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n          LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.user_pseudo_id = Labels.user_pseudo_id\\r\\n          WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                  FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                  AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                  GA.event_timestamp < IFNULL(event_session, 0)\\r\\n                  OR event_session IS NULL)\\r\\n          GROUP BY \\r\\n              GA.user_pseudo_id\\r\\n      )\\r\\n  SELECT\\r\\n      *\\r\\n{train_or_predict}  FROM\\r\\n      user_model\\r\\n  LIMIT 100000000\\r\\n);"""
 GA4_VERTEX_TRAINING_PARAMS = """
@@ -218,7 +218,7 @@ GA4_VERTEX_TRAINING_PARAMS = """
       "type": "text"
     }}""".strip()
 
-GA4_VERTEX_BATCH_PREDICT = """
+VERTEX_BATCH_PREDICT = """
   {{
     "id": "batch_predict",
     "name": "Batch Predict",
@@ -582,10 +582,10 @@ GA4_PARAMS = """
         "name": "API_SECRET",
         "value": "{ga_api_secret}"
     }}"""
-GA4_EXTRACT_QUERY = """#standardSQL\\r\\nWITH\\r\\n  maxDate AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('{table_suffix}') + 1) AS latest\\r\\n    FROM `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE '{table_suffix}%'\\r\\n  ),\\r\\n{max_prediction_table}  visitorsWithScoreYesterday AS (\\r\\n    SELECT\\r\\n      user_pseudo_id\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA,\\r\\n      UNNEST(event_params) AS EP\\r\\n    WHERE\\r\\n      event_name = 'post_score'\\r\\n      AND EP.value.string_value = '{model_objective} - Instant BQML'\\r\\n      AND _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n    GROUP BY 1\\r\\n  ),\\r\\n  visitorsNeedingScoreYesterday AS (\\r\\n    SELECT\\r\\n      user_pseudo_id AS visitor\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*`\\r\\n    WHERE\\r\\n      _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n      AND user_pseudo_id NOT IN (\\r\\n        SELECT user_pseudo_id FROM visitorsWithScoreYesterday\\r\\n      )\\r\\n    GROUP BY 1\\r\\n  )\\r\\nSELECT\\r\\n  'post_score' AS event_name,\\r\\n  Predict.user_pseudo_id AS client_id,\\r\\n  normalizedScore AS score,\\r\\n  '{model_objective} - Instant BQML' AS model_type,\\r\\n  Timestamps.event_timestamp AS event_timestamp\\r\\nFROM\\r\\n  (\\r\\n    SELECT\\r\\n      predicted_will_convert_later{vertex_value},\\r\\n      user_pseudo_id,\\r\\n      NTILE(1000)\\r\\n        OVER (ORDER BY predicted_will_convert_later ASC) AS normalizedScore\\r\\n    FROM\\r\\n      `{crmint_project}.{{% BQ_DATASET %}}.{prediction_table}    GROUP BY 1, 2\\r\\n  ) AS Predict\\r\\nINNER JOIN (SELECT visitor FROM visitorsNeedingScoreYesterday) AS Visitors\\r\\n  ON Predict.user_pseudo_id = Visitors.visitor\\r\\nLEFT JOIN\\r\\n  (\\r\\n    SELECT\\r\\n      user_pseudo_id,\\r\\n      MAX(event_timestamp) AS event_timestamp\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*`\\r\\n    WHERE\\r\\n      _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n    GROUP BY 1\\r\\n  ) AS Timestamps\\r\\n  ON Predict.user_pseudo_id = Timestamps.user_pseudo_id\\r\\nGROUP BY 1, 2, 3, 4, 5;"""
+GA4_EXTRACT_QUERY = """#standardSQL\\r\\n{max_prediction_table},\\r\\n  maxDate AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('{table_suffix}') + 1) AS latest\\r\\n    FROM `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE '{table_suffix}%'\\r\\n  ),\\r\\n  visitorsWithScoreYesterday AS (\\r\\n    SELECT\\r\\n      user_pseudo_id\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA,\\r\\n      UNNEST(event_params) AS EP\\r\\n    WHERE\\r\\n      event_name = 'post_score'\\r\\n      AND EP.value.string_value = '{model_objective} - Instant BQML'\\r\\n      AND _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n    GROUP BY 1\\r\\n  ),\\r\\n  visitorsNeedingScoreYesterday AS (\\r\\n    SELECT\\r\\n      user_pseudo_id AS visitor\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*`\\r\\n    WHERE\\r\\n      _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n      AND user_pseudo_id NOT IN (\\r\\n        SELECT user_pseudo_id FROM visitorsWithScoreYesterday\\r\\n      )\\r\\n    GROUP BY 1\\r\\n  )\\r\\nSELECT\\r\\n  'post_score' AS event_name,\\r\\n  Predict.user_pseudo_id AS client_id,\\r\\n  normalizedScore AS score,\\r\\n  '{model_objective} - Instant BQML' AS model_type,\\r\\n  Timestamps.event_timestamp AS event_timestamp\\r\\nFROM\\r\\n  (\\r\\n    SELECT\\r\\n      predicted_will_convert_later{vertex_value},\\r\\n      user_pseudo_id,\\r\\n      NTILE(1000)\\r\\n        OVER (ORDER BY predicted_will_convert_later ASC) AS normalizedScore\\r\\n    FROM\\r\\n      `{crmint_project}.{{% BQ_DATASET %}}.{prediction_table}    GROUP BY 1, 2\\r\\n  ) AS Predict\\r\\nINNER JOIN (SELECT visitor FROM visitorsNeedingScoreYesterday) AS Visitors\\r\\n  ON Predict.user_pseudo_id = Visitors.visitor\\r\\nLEFT JOIN\\r\\n  (\\r\\n    SELECT\\r\\n      user_pseudo_id,\\r\\n      MAX(event_timestamp) AS event_timestamp\\r\\n    FROM\\r\\n      `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*`\\r\\n    WHERE\\r\\n      _TABLE_SUFFIX = FORMAT_DATE(\\r\\n        '%Y%m%d',\\r\\n        DATE_SUB(\\r\\n          PARSE_DATE('%Y%m%d', (SELECT latest FROM maxDate)),\\r\\n          INTERVAL 1 DAY))\\r\\n    GROUP BY 1\\r\\n  ) AS Timestamps\\r\\n  ON Predict.user_pseudo_id = Timestamps.user_pseudo_id\\r\\nGROUP BY 1, 2, 3, 4, 5;"""
 GA4_PREDICTION_QUERY = """SELECT user_pseudo_id, predicted_will_convert_later\\r\\nFROM\\r\\n    ml.predict(\\r\\n        MODEL `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_model`,\\r\\n        (\\r\\n            WITH \\r\\n                visitors_labeled AS ( \\r\\n                    SELECT\\r\\n                        user_pseudo_id, \\r\\n                        MIN(\\r\\n                            CASE \\r\\n                            WHEN {objective}\\r\\n                            THEN event_timestamp END) AS event_session, \\r\\n                        MIN(\\r\\n                            CASE \\r\\n                            WHEN {objective}\\r\\n                            THEN event_date END) AS event_date, \\r\\n                        MAX(\\r\\n                            CASE \\r\\n                            WHEN {objective}\\r\\n                            THEN 1 \\r\\n                            ELSE 0 END) AS label\\r\\n                    FROM \\r\\n                        `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n                    WHERE \\r\\n                        _TABLE_SUFFIX BETWEEN\\r\\n                            FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                    GROUP BY \\r\\n                        user_pseudo_id\\r\\n                )\\r\\n                SELECT \\r\\n                    GA.user_pseudo_id,\\r\\n                    IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n                    MAX(geo.city) AS city,\\r\\n                    MAX(geo.region) AS region,\\r\\n                    MAX(traffic_source.medium) AS medium,\\r\\n                    MAX(traffic_source.source) AS source,\\r\\n                    MAX(device.web_info.browser) AS browser,\\r\\n                    COUNT(DISTINCT event_name) AS events,\\r\\n                    MAX(event_name) AS common_events,\\r\\n                    MAX(device.category) AS device_category,\\r\\n                    MAX(device.operating_system) AS device_operating_system,\\r\\n                    MAX(platform) AS platform\\r\\n                FROM \\r\\n                    `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n                LEFT JOIN visitors_labeled AS Labels\\r\\n                    ON GA.user_pseudo_id = Labels.user_pseudo_id\\r\\n                WHERE \\r\\n                    _TABLE_SUFFIX BETWEEN\\r\\n                        FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                        AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                    AND (\\r\\n                        GA.event_timestamp < IFNULL(event_session, 0)\\r\\n                        OR event_session IS NULL)\\r\\n                GROUP BY \\r\\n                    GA.user_pseudo_id\\r\\n        )\\r\\n    );"""
 GA4_TRAINING_QUERY = """#standardSQL\\r\\n{create_dataset}CREATE OR REPLACE MODEL `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_model`\\r\\n    OPTIONS ({model_options})\\r\\nAS (\\r\\n    WITH \\r\\n        visitors_labeled AS ( \\r\\n            SELECT\\r\\n                user_pseudo_id, \\r\\n                MIN(\\r\\n                    CASE \\r\\n                    WHEN {objective}\\r\\n                    THEN event_timestamp END) AS event_session, \\r\\n                MIN(\\r\\n                    CASE \\r\\n                    WHEN {objective}\\r\\n                    THEN event_date END) AS event_date, \\r\\n                MAX(\\r\\n                    CASE \\r\\n                    WHEN {objective}\\r\\n                    THEN 1 \\r\\n                    ELSE 0 END) AS label\\r\\n            FROM \\r\\n                `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n            WHERE \\r\\n                _TABLE_SUFFIX BETWEEN\\r\\n                    FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                    AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n            GROUP BY \\r\\n                user_pseudo_id\\r\\n        ),\\r\\n        user_model AS (\\r\\n            SELECT \\r\\n                GA.user_pseudo_id,\\r\\n                IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n                MAX(geo.city) AS city,\\r\\n                MAX(geo.region) AS region,\\r\\n                MAX(traffic_source.medium) AS medium,\\r\\n                MAX(traffic_source.source) AS source,\\r\\n                MAX(device.web_info.browser) AS browser,\\r\\n                COUNT(DISTINCT event_name) AS events,\\r\\n                MAX(event_name) AS common_events,\\r\\n                MAX(device.category) AS device_category,\\r\\n                MAX(device.operating_system) AS device_operating_system,\\r\\n                MAX(platform) AS platform\\r\\n            FROM \\r\\n                `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n                ON GA.user_pseudo_id = Labels.user_pseudo_id\\r\\n            WHERE \\r\\n                _TABLE_SUFFIX BETWEEN\\r\\n                    FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                    AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n                AND (\\r\\n                    GA.event_timestamp < IFNULL(event_session, 0)\\r\\n                    OR event_session IS NULL)\\r\\n            GROUP BY \\r\\n                GA.user_pseudo_id\\r\\n        )\\r\\n    SELECT\\r\\n        *\\r\\n        EXCEPT (user_pseudo_id)\\r\\n    FROM\\r\\n        user_model\\r\\n    LIMIT 100000000\\r\\n);"""
-GA4_PREDICTION_TABLE = """{% BQ_NAMESPACE %}_predictions`\\r\\n        AS P\\r\\n"""
+PREDICTION_TABLE = """{% BQ_NAMESPACE %}_predictions`\\r\\n        AS P\\r\\n"""
 
 UA_TRAINING_PIPELINE = """{{
     {training_params}
@@ -641,7 +641,7 @@ UA_TRAINING_PIPELINE = """{{
 }}""".strip()
 
 UA_PREDICTION_PIPELINE = """{{
-  {prediction_params}
+  {params}
   ],
   "jobs": [
     {{
@@ -650,7 +650,7 @@ UA_PREDICTION_PIPELINE = """{{
         "params": [
         {{
             "description": null,
-            "value": "{prediction_query}",
+            "value": "{query}",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -698,20 +698,21 @@ UA_PREDICTION_PIPELINE = """{{
         }}
         ],
         "id": "predict",
-        "name": "Predict"
-    }},
-    {{
+        "name": "{vertex_name_format}Predict"
+      }},
+      {vertex_batch_predict}
+      {{
         "hash_start_conditions": [
-        {{
-            "preceding_job_id": "predict",
+          {{
+            "preceding_job_id": "{extract_preceding_job}",
             "condition": "success"
-        }}
+          }}
         ],
         "worker_class": "BQQueryLauncher",
         "params": [
         {{
             "description": null,
-            "value": "SELECT\\r\\n    ga.custom_dimension_userId,\\r\\n    predict.prediction AS score,\\r\\n    NTILE(1000) OVER (ORDER BY predict.prediction ASC) AS tile\\r\\nFROM\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            predicted_will_convert_later AS prediction\\r\\n        FROM\\r\\n            `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_predictions`\\r\\n            AS P\\r\\n    ) AS predict\\r\\nINNER JOIN\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            {scope_query} AS ga\\r\\n    ON predict.{cid} = ga.{cid};",
+            "value": "{max_prediction_table}SELECT\\r\\n    ga.custom_dimension_userId,\\r\\n    predict.prediction AS score,\\r\\n    NTILE(1000) OVER (ORDER BY predict.prediction ASC) AS tile\\r\\nFROM\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            predicted_will_convert_later{vertex_value} AS prediction\\r\\n        FROM\\r\\n            `{crmint_project}.{{% BQ_DATASET %}}.{prediction_table}    ) AS predict\\r\\nINNER JOIN\\r\\n    (\\r\\n        SELECT\\r\\n            {cid},\\r\\n            {scope_query} AS ga\\r\\n    ON predict.{cid} = ga.{cid};",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -1437,7 +1438,7 @@ def _get_ga4_config(stage_name, ml='vertex'):
     model_objective=objective,
     crmint_project=crmint_project,
     max_prediction_table='',
-    prediction_table=GA4_PREDICTION_TABLE,
+    prediction_table=PREDICTION_TABLE,
     vertex_value='')
   training_query = GA4_TRAINING_QUERY.format(
     create_dataset=create_dataset,
@@ -1483,21 +1484,21 @@ def _get_ga4_config(stage_name, ml='vertex'):
       objective=optimize_objective,
       ga4_bigquery_export_project=bigquery_export_project,
       table_suffix=table_suffix,
-      train_or_predict=VERTEX_TRAIN)
+      train_or_predict=GA4_VERTEX_TRAIN)
     format_prediction = GA4_VERTEX_FORMAT_QUERY.format(
       create_dataset=create_dataset,
       objective=optimize_objective,
       ga4_bigquery_export_project=bigquery_export_project,
       table_suffix=table_suffix,
       train_or_predict=VERTEX_PREDICT)
-    training = GA4_VERTEX_TRAINING_PIPELINE.format(
+    training = VERTEX_TRAINING_PIPELINE.format(
       training_params=ga4_params,
       crmint_project=crmint_project,
       project_region=project_region,
       formatting_query=format_training,
       creation_time=creation_time,
       pipeline_name=training_pipeline_name)
-    vertex_batch_predict = GA4_VERTEX_BATCH_PREDICT.format(
+    vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
       project_region=project_region,
       crmint_project=crmint_project)
     prediction = GA4_PREDICTION_PIPELINE.format(
@@ -1520,11 +1521,13 @@ def _get_ga4_config(stage_name, ml='vertex'):
     fp.write(prediction)
   return training_filepath, prediction_filepath
       
-def _get_ua_config(stage_name):
+def _get_ua_config(stage_name, ml='vertex'):
   cid = 'clientId'
   product_dimension = ''
   cd_scope_query = ''
+  vertex_batch_predict = ''
   crmint_project = stage_name.project_id_gae
+  project_region = stage_name.project_region
   creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives(UA_MODEL_OBJECTIVES)
@@ -1825,15 +1828,17 @@ def _get_ua_config(stage_name):
     cd_scope_query=cd_scope_query)
   PREDICTION_QUERY = """SELECT uid AS {cid}, predicted_will_convert_later\\r\\nFROM\\r\\n  ml.predict(\\r\\n    MODEL `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_model`,\\r\\n    (\\r\\n      WITH \\r\\n          {visitors_labeled},\\r\\n          visitor_region AS (\\r\\n            SELECT\\r\\n              GA.{cid}, \\r\\n              MAX(geoNetwork.region) AS region\\r\\n            FROM \\r\\n             `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n            GROUP BY \\r\\n              {cid}\\r\\n          ),\\r\\n          visitor_day_page_map AS (\\r\\n            SELECT \\r\\n              GA.{cid},\\r\\n              EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date)) AS day,\\r\\n              SUM(totals.pageviews) AS pages_viewed\\r\\n            FROM\\r\\n              `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n              FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n              AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n              GROUP BY 1, 2\\r\\n          ),\\r\\n          visitor_common_day AS (\\r\\n            SELECT \\r\\n              {cid},\\r\\n              /* In the event of a tie, pick any of the top dates. */\\r\\n              CASE \\r\\n                WHEN ANY_VALUE(day) = 1 THEN 'Sunday'\\r\\n                WHEN ANY_VALUE(day) = 2 THEN 'Monday'\\r\\n                WHEN ANY_VALUE(day) = 3 THEN 'Tuesday'\\r\\n                WHEN ANY_VALUE(day) = 4 THEN 'Wednesday'\\r\\n                WHEN ANY_VALUE(day) = 5 THEN 'Thursday'\\r\\n                WHEN ANY_VALUE(day) = 6 THEN 'Friday'\\r\\n                WHEN ANY_VALUE(day) = 7 THEN 'Saturday' \\r\\n              END AS day\\r\\n            FROM \\r\\n              visitor_day_page_map AS day_page_map\\r\\n            WHERE day_page_map.pages_viewed = (\\r\\n              SELECT MAX(pages_viewed)\\r\\n              FROM visitor_day_page_map AS day_map\\r\\n              WHERE day_page_map.{cid} = day_map.{cid})\\r\\n            GROUP BY 1\\r\\n          ),\\r\\n          users_sessions AS (\\r\\n            SELECT \\r\\n                {key} AS uid,\\r\\n                IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n                MAX(Visitor_region.region) AS visited_region,\\r\\n                MAX(Visitor_common_day.day) AS visited_dow,\\r\\n                COUNT(distinct visitId) AS total_sessions,\\r\\n                SUM(totals.pageviews) AS pageviews,\\r\\n                COUNT(totals.bounces) / COUNT(distinct visitId) AS bounce_rate,\\r\\n                SUM(totals.pageviews) / COUNT(distinct visitId) AS avg_session_depth,\\r\\n                MAX(CASE WHEN device.isMobile IS TRUE THEN 1 ELSE 0 END) AS mobile,\\r\\n                MAX(CASE WHEN device.browser = 'Chrome' THEN 1 ELSE 0 END) AS chrome,\\r\\n                MAX(CASE WHEN device.browser LIKE  '%Safari%' THEN 1 ELSE 0 END) AS safari,\\r\\n                MAX(\\r\\n                  CASE WHEN device.browser <> 'Chrome' AND device.browser NOT LIKE '%Safari%' THEN 1 ELSE 0 END) AS browser_other,\\r\\n                SUM(CASE WHEN trafficSource.medium = '(none)' THEN 1 ELSE 0 END) AS visits_traffic_source_none,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'organic' THEN 1 ELSE 0 END) AS visits_traffic_source_organic,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpc' THEN 1 ELSE 0 END) AS visits_traffic_source_cpc,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpm' THEN 1 ELSE 0 END) AS visits_traffic_source_cpm,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'affiliate' THEN 1 ELSE 0 END) AS visits_traffic_source_affiliate,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'referral' THEN 1 ELSE 0 END) AS visits_traffic_source_referral,\\r\\n                COUNT(distinct geoNetwork.region) AS distinct_regions,\\r\\n                COUNT(distinct EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date))) AS num_diff_days_visited\\r\\n            FROM \\r\\n              `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            LEFT JOIN visitor_region AS Visitor_region\\r\\n              ON GA.{cid} = Visitor_region.{cid}\\r\\n            LEFT JOIN visitor_common_day AS Visitor_common_day\\r\\n              ON GA.{cid} = Visitor_common_day.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL){unnest_where_condition}\\r\\n            GROUP BY \\r\\n              1\\r\\n          )\\r\\n        SELECT \\r\\n          * \\r\\n        FROM \\r\\n          users_sessions\\r\\n        WHERE \\r\\n          bounce_rate < 1.0\\r\\n    )\\r\\n  );"""
   TRAINING_QUERY = """#standardSQL\\r\\n{create_dataset}CREATE OR REPLACE MODEL `{crmint_project}.{{% BQ_DATASET %}}.{{% BQ_NAMESPACE %}}_model`\\r\\n    OPTIONS ({model_options})\\r\\nAS (\\r\\n    WITH \\r\\n        {visitors_labeled},\\r\\n          visitor_region AS (\\r\\n            SELECT\\r\\n              GA.{cid}, \\r\\n              MAX(geoNetwork.region) AS region\\r\\n            FROM \\r\\n             `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n            GROUP BY \\r\\n              {cid}\\r\\n          ),\\r\\n          visitor_day_page_map AS (\\r\\n            SELECT \\r\\n              GA.{cid},\\r\\n              EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date)) AS day,\\r\\n              SUM(totals.pageviews) AS pages_viewed\\r\\n            FROM\\r\\n              `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n              FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n              AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL)\\r\\n              GROUP BY 1, 2\\r\\n          ),\\r\\n          visitor_common_day AS (\\r\\n            SELECT \\r\\n              {cid},\\r\\n              /* In the event of a tie, pick any of the top dates. */\\r\\n              CASE \\r\\n                WHEN ANY_VALUE(day) = 1 THEN 'Sunday'\\r\\n                WHEN ANY_VALUE(day) = 2 THEN 'Monday'\\r\\n                WHEN ANY_VALUE(day) = 3 THEN 'Tuesday'\\r\\n                WHEN ANY_VALUE(day) = 4 THEN 'Wednesday'\\r\\n                WHEN ANY_VALUE(day) = 5 THEN 'Thursday'\\r\\n                WHEN ANY_VALUE(day) = 6 THEN 'Friday'\\r\\n                WHEN ANY_VALUE(day) = 7 THEN 'Saturday' \\r\\n              END AS day\\r\\n            FROM \\r\\n              visitor_day_page_map AS day_page_map\\r\\n            WHERE day_page_map.pages_viewed = (\\r\\n              SELECT MAX(pages_viewed)\\r\\n              FROM visitor_day_page_map AS day_map\\r\\n              WHERE day_page_map.{cid} = day_map.{cid})\\r\\n            GROUP BY 1\\r\\n          ),\\r\\n          users_sessions AS (\\r\\n            SELECT \\r\\n                {key} AS uid,\\r\\n                IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n                MAX(Visitor_region.region) AS visited_region,\\r\\n                MAX(Visitor_common_day.day) AS visited_dow,\\r\\n                COUNT(distinct visitId) AS total_sessions,\\r\\n                SUM(totals.pageviews) AS pageviews,\\r\\n                COUNT(totals.bounces) / COUNT(distinct visitId) AS bounce_rate,\\r\\n                SUM(totals.pageviews) / COUNT(distinct visitId) AS avg_session_depth,\\r\\n                MAX(CASE WHEN device.isMobile IS TRUE THEN 1 ELSE 0 END) AS mobile,\\r\\n                MAX(CASE WHEN device.browser = 'Chrome' THEN 1 ELSE 0 END) AS chrome,\\r\\n                MAX(CASE WHEN device.browser LIKE  '%Safari%' THEN 1 ELSE 0 END) AS safari,\\r\\n                MAX(\\r\\n                  CASE WHEN device.browser <> 'Chrome' AND device.browser NOT LIKE '%Safari%' THEN 1 ELSE 0 END) AS browser_other,\\r\\n                SUM(CASE WHEN trafficSource.medium = '(none)' THEN 1 ELSE 0 END) AS visits_traffic_source_none,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'organic' THEN 1 ELSE 0 END) AS visits_traffic_source_organic,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpc' THEN 1 ELSE 0 END) AS visits_traffic_source_cpc,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'cpm' THEN 1 ELSE 0 END) AS visits_traffic_source_cpm,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'affiliate' THEN 1 ELSE 0 END) AS visits_traffic_source_affiliate,\\r\\n                SUM(CASE WHEN trafficSource.medium = 'referral' THEN 1 ELSE 0 END) AS visits_traffic_source_referral,\\r\\n                COUNT(distinct geoNetwork.region) AS distinct_regions,\\r\\n                COUNT(distinct EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date))) AS num_diff_days_visited\\r\\n            FROM \\r\\n              `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n            LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.{cid} = Labels.{cid}\\r\\n            LEFT JOIN visitor_region AS Visitor_region\\r\\n              ON GA.{cid} = Visitor_region.{cid}\\r\\n            LEFT JOIN visitor_common_day AS Visitor_common_day\\r\\n              ON GA.{cid} = Visitor_common_day.{cid}\\r\\n            WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                GA.visitStartTime < IFNULL(event_session, 0)\\r\\n                OR event_session IS NULL){unnest_where_condition}\\r\\n            GROUP BY \\r\\n              1\\r\\n          )\\r\\n        SELECT \\r\\n          * \\r\\n          EXCEPT (uid)\\r\\n        FROM \\r\\n          users_sessions\\r\\n        WHERE \\r\\n          bounce_rate < 1.0 \\r\\n);"""
+  UA_FORMAT_QUERY = """#standardSQL\\r\\n{create_dataset}WITH \\r\\n    {visitors_labeled},\\r\\n      visitor_region AS (\\r\\n        SELECT\\r\\n          GA.{cid}, \\r\\n          MAX(geoNetwork.region) AS region\\r\\n        FROM \\r\\n         `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n        LEFT JOIN visitors_labeled AS Labels\\r\\n          ON GA.{cid} = Labels.{cid}\\r\\n        WHERE \\r\\n          _TABLE_SUFFIX BETWEEN\\r\\n            FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n          AND (\\r\\n            GA.visitStartTime < IFNULL(event_session, 0)\\r\\n            OR event_session IS NULL)\\r\\n        GROUP BY \\r\\n          {cid}\\r\\n      ),\\r\\n      visitor_day_page_map AS (\\r\\n        SELECT \\r\\n          GA.{cid},\\r\\n          EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date)) AS day,\\r\\n          SUM(totals.pageviews) AS pages_viewed\\r\\n        FROM\\r\\n          `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n        LEFT JOIN visitors_labeled AS Labels\\r\\n          ON GA.{cid} = Labels.{cid}\\r\\n        WHERE \\r\\n          _TABLE_SUFFIX BETWEEN\\r\\n          FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n          AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n          AND (\\r\\n            GA.visitStartTime < IFNULL(event_session, 0)\\r\\n            OR event_session IS NULL)\\r\\n          GROUP BY 1, 2\\r\\n      ),\\r\\n      visitor_common_day AS (\\r\\n        SELECT \\r\\n          {cid},\\r\\n          /* In the event of a tie, pick any of the top dates. */\\r\\n          CASE \\r\\n            WHEN ANY_VALUE(day) = 1 THEN 'Sunday'\\r\\n            WHEN ANY_VALUE(day) = 2 THEN 'Monday'\\r\\n            WHEN ANY_VALUE(day) = 3 THEN 'Tuesday'\\r\\n            WHEN ANY_VALUE(day) = 4 THEN 'Wednesday'\\r\\n            WHEN ANY_VALUE(day) = 5 THEN 'Thursday'\\r\\n            WHEN ANY_VALUE(day) = 6 THEN 'Friday'\\r\\n            WHEN ANY_VALUE(day) = 7 THEN 'Saturday' \\r\\n          END AS day\\r\\n        FROM \\r\\n          visitor_day_page_map AS day_page_map\\r\\n        WHERE day_page_map.pages_viewed = (\\r\\n          SELECT MAX(pages_viewed)\\r\\n          FROM visitor_day_page_map AS day_map\\r\\n          WHERE day_page_map.{cid} = day_map.{cid})\\r\\n        GROUP BY 1\\r\\n      ),\\r\\n      users_sessions AS (\\r\\n        SELECT \\r\\n            {key} AS uid,\\r\\n            IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n            MAX(Visitor_region.region) AS visited_region,\\r\\n            MAX(Visitor_common_day.day) AS visited_dow,\\r\\n            COUNT(distinct visitId) AS total_sessions,\\r\\n            SUM(totals.pageviews) AS pageviews,\\r\\n            COUNT(totals.bounces) / COUNT(distinct visitId) AS bounce_rate,\\r\\n            SUM(totals.pageviews) / COUNT(distinct visitId) AS avg_session_depth,\\r\\n            MAX(CASE WHEN device.isMobile IS TRUE THEN 1 ELSE 0 END) AS mobile,\\r\\n            MAX(CASE WHEN device.browser = 'Chrome' THEN 1 ELSE 0 END) AS chrome,\\r\\n            MAX(CASE WHEN device.browser LIKE  '%Safari%' THEN 1 ELSE 0 END) AS safari,\\r\\n            MAX(\\r\\n              CASE WHEN device.browser <> 'Chrome' AND device.browser NOT LIKE '%Safari%' THEN 1 ELSE 0 END) AS browser_other,\\r\\n            SUM(CASE WHEN trafficSource.medium = '(none)' THEN 1 ELSE 0 END) AS visits_traffic_source_none,\\r\\n            SUM(CASE WHEN trafficSource.medium = 'organic' THEN 1 ELSE 0 END) AS visits_traffic_source_organic,\\r\\n            SUM(CASE WHEN trafficSource.medium = 'cpc' THEN 1 ELSE 0 END) AS visits_traffic_source_cpc,\\r\\n            SUM(CASE WHEN trafficSource.medium = 'cpm' THEN 1 ELSE 0 END) AS visits_traffic_source_cpm,\\r\\n            SUM(CASE WHEN trafficSource.medium = 'affiliate' THEN 1 ELSE 0 END) AS visits_traffic_source_affiliate,\\r\\n            SUM(CASE WHEN trafficSource.medium = 'referral' THEN 1 ELSE 0 END) AS visits_traffic_source_referral,\\r\\n            COUNT(distinct geoNetwork.region) AS distinct_regions,\\r\\n            COUNT(distinct EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', date))) AS num_diff_days_visited\\r\\n        FROM \\r\\n          `{bigquery_export_project}.{{% BQ_DATASET %}}.ga_sessions_*` AS GA\\r\\n        LEFT JOIN visitors_labeled AS Labels\\r\\n          ON GA.{cid} = Labels.{cid}\\r\\n        LEFT JOIN visitor_region AS Visitor_region\\r\\n          ON GA.{cid} = Visitor_region.{cid}\\r\\n        LEFT JOIN visitor_common_day AS Visitor_common_day\\r\\n          ON GA.{cid} = Visitor_common_day.{cid}\\r\\n        WHERE \\r\\n          _TABLE_SUFFIX BETWEEN\\r\\n            FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n            AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n          AND (\\r\\n            GA.visitStartTime < IFNULL(event_session, 0)\\r\\n            OR event_session IS NULL){unnest_where_condition}\\r\\n        GROUP BY \\r\\n          1\\r\\n      )\\r\\n    SELECT \\r\\n      * {train_or_predict}\\r\\n    FROM \\r\\n      users_sessions\\r\\n    WHERE \\r\\n      bounce_rate < 1.0 \\r\\n);"""  
+  UA_VERTEX_TRAIN = """\\r\\n      EXCEPT (uid)"""
   training_query = TRAINING_QUERY.format(
-      cid=cid,
-      create_dataset=create_dataset,
-      crmint_project=crmint_project,
-      bigquery_export_project=bigquery_export_project,
-      key=key,
-      model_options=model_options,
-      unnest_where_condition=unnest_where_condition,
-      visitors_labeled=visitors_labeled)
+    cid=cid,
+    create_dataset=create_dataset,
+    crmint_project=crmint_project,
+    bigquery_export_project=bigquery_export_project,
+    key=key,
+    model_options=model_options,
+    unnest_where_condition=unnest_where_condition,
+    visitors_labeled=visitors_labeled)
   prediction_query = PREDICTION_QUERY.format(
     cid=cid,
     create_dataset=create_dataset,
@@ -1844,15 +1849,15 @@ def _get_ua_config(stage_name):
     unnest_where_condition=unnest_where_condition,
     visitors_labeled=visitors_labeled)
   training = UA_TRAINING_PIPELINE.format(
-     training_params=training_params,
-     training_query=training_query,
-     crmint_project=crmint_project,
-     training_name=training_name,
-     training_pipeline_name=training_pipeline_name,
-     creation_time=creation_time)
+    training_params=training_params,
+    training_query=training_query,
+    crmint_project=crmint_project,
+    training_name=training_name,
+    training_pipeline_name=training_pipeline_name,
+    creation_time=creation_time)
   prediction = UA_PREDICTION_PIPELINE.format(
-    prediction_query=prediction_query,
-    prediction_params=prediction_params,
+    query=prediction_query,
+    params=prediction_params,
     crmint_project=crmint_project,
     prediction_pipeline_name=prediction_pipeline_name,
     linked_account_id=linked_ad_account_id,
@@ -1860,7 +1865,60 @@ def _get_ua_config(stage_name):
     cid=cid,
     scope_query=scope_query,
     model_objective=objective,
-    creation_time=creation_time)
+    creation_time=creation_time,
+    extract_preceding_job='predict',
+    vertex_batch_predict=vertex_batch_predict,
+    vertex_name_format='',
+    vertex_value='',
+    prediction_table=PREDICTION_TABLE,
+    max_prediction_table='')
+  if ml == 'vertex':
+    format_training = UA_FORMAT_QUERY.format(
+      cid=cid,
+      create_dataset=create_dataset,
+      crmint_project=crmint_project,
+      bigquery_export_project=bigquery_export_project,
+      key=key,
+      unnest_where_condition=unnest_where_condition,
+      visitors_labeled=visitors_labeled,
+      train_or_predict=UA_VERTEX_TRAIN)
+    format_prediction = UA_FORMAT_QUERY.format(
+      cid=cid,
+      create_dataset=create_dataset,
+      crmint_project=crmint_project,
+      bigquery_export_project=bigquery_export_project,
+      key=key,
+      unnest_where_condition=unnest_where_condition,
+      visitors_labeled=visitors_labeled,
+      train_or_predict=VERTEX_PREDICT)
+    training = VERTEX_TRAINING_PIPELINE.format(
+      training_params=training_params,
+      crmint_project=crmint_project,
+      project_region=project_region,
+      formatting_query=format_training,
+      creation_time=creation_time,
+      pipeline_name=training_pipeline_name)
+    vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
+      project_region=project_region,
+      crmint_project=crmint_project)
+    prediction = UA_PREDICTION_PIPELINE.format(
+      query=format_prediction,
+      params=prediction_params,
+      crmint_project=crmint_project,
+      prediction_pipeline_name=prediction_pipeline_name,
+      linked_account_id=linked_ad_account_id,
+      linked_account_type=linked_ad_account_type,
+      cid=cid,
+      scope_query=scope_query,
+      model_objective=objective,
+      creation_time=creation_time,
+      extract_preceding_job='batch_predict',
+      vertex_batch_predict=vertex_batch_predict,
+      vertex_name_format='Format ',
+      vertex_value=VERTEX_VALUE,
+      prediction_table=MAX_PREDICTION_WHERE,
+      max_prediction_table=MAX_PREDICTION_TABLE.format(
+        crmint_project=crmint_project))
   training_filename = 'training_pipeline.json'
   prediction_filename = 'prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
