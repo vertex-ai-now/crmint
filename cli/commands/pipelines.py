@@ -1393,9 +1393,8 @@ def _get_ga4_config(stage_name, ml='vertex'):
   ga_measurement_id = click.prompt(
     'What the Google Analytics Measurement ID', default='G-G5YB23XTTW').strip()
   _format_heading('GA API Secret', 'yellow')
-  ga_api_secret = 
-  (
-    'What the Google Analytics API secret', type=str)
+  ga_api_secret = click.prompt(
+    'What the Google Analytics API secret', type=str).strip()
   _format_heading('GA BigQuery Frequency', 'yellow')
   frequencies = ['Daily Only', 'Daily & Streaming', 'Streaming Only']
   for i, f in enumerate(frequencies):
