@@ -1272,23 +1272,23 @@ def _model_objectives(model_objectives):
 def _ua_event_propensity_config():
   _format_heading('Event Details', 'green')
   event_category = click.prompt(
-    'What is the event category (required)', type=str)
+    'What is the event category (required)', type=str).strip()
   event_action = click.prompt(
-    'What is the event action (optional - press enter to skip)', default='.*?')
+    'What is the event action (optional - press enter to skip)', default='.*?').strip()
   event_label = click.prompt(
-    'What is the event label (optional - press enter to skip)', default='.*?')
+    'What is the event label (optional - press enter to skip)', default='.*?').strip()
   return event_category, event_action, event_label
 
 def _ga4_event_propensity_config():
   _format_heading('Event Details', 'green')
   event_name = click.prompt(
-    'What is the event name', type=str)
+    'What is the event name', type=str).strip()
   return event_name
 
 def _destination_propensity_config():
   _format_heading('Destination Details', 'green')
   destination_url = click.prompt(
-    'What is the destination URL', default='/ordercomplete')
+    'What is the destination URL', default='/ordercomplete').strip()
   return destination_url
 
 def _product_propensity_config():
@@ -1307,7 +1307,7 @@ def _product_propensity_config():
   if p == "Product SKU":
     product_dimension = 'product_propensity.productSKU'
   product = click.prompt(
-    f'What is the {p}', type=str)
+    f'What is the {p}', type=str).strip()
   return product, product_dimension
   
 def _cloud_architecture(stage_name):
@@ -1327,7 +1327,7 @@ def _cloud_architecture(stage_name):
     msg = (
       f'What is the Cloud Project ID for your\n'
       f'Google Analytics BigQuery Export')
-    bigquery_export_project = click.prompt(msg, type=str)
+    bigquery_export_project = click.prompt(msg, type=str).strip()
     create_dataset = """CREATE SCHEMA IF NOT EXISTS `{crmint_project}.{{% BQ_DATASET %}}`;\\r\\n""".format(
         crmint_project=stage_name.project_id_gae)
   return bigquery_export_project, create_dataset, same_project
@@ -1335,10 +1335,10 @@ def _cloud_architecture(stage_name):
 def _bigquery_config():
   _format_heading('BigQuery Dataset ID', 'blue')
   bq_dataset_id = click.prompt(
-    'What is your BigQuery dataset ID', type=str)
+    'What is your BigQuery dataset ID', type=str).strip()
   _format_heading('BigQuery Dataset Location', 'blue')
   bq_dataset_location = click.prompt(
-    'What is the location of your Google Analytics BigQuery dataset', type=str)
+    'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
   return bq_dataset_id, bq_dataset_location
 
 def _custom_dimension_propensity_config():
@@ -1347,7 +1347,7 @@ def _custom_dimension_propensity_config():
   custom_dimension_index = click.prompt(
     'What is the index of your custom dimension (required)', type=int)
   custom_dimension_value = click.prompt(
-    'What is the value of your custom dimension (optional - press enter to skip)', default='.*?')
+    'What is the value of your custom dimension (optional - press enter to skip)', default='.*?').strip()
   for i, cd_s in enumerate(cd_scopes):
     click.echo(f'{i + 1}) {cd_s}')
   cd_scope_ind = click.prompt(
@@ -1367,7 +1367,7 @@ def _check_ga_account_id(ga_id):
   except IndexError:
     ga_account_id = click.prompt(
       'Please enter a correctly formatted Google Analytics UA ID',
-      default='UA-12345678-9')
+      default='UA-12345678-9').strip()
     _check_ga_account_id(ga_account_id)
 
 def _get_ga4_config(stage_name, ml='vertex'):
@@ -1388,12 +1388,13 @@ def _get_ga4_config(stage_name, ml='vertex'):
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
     'Come up with a unique namespace to keep your\n'
-    'assets organized (ie, acme_propensity)', type=str)
+    'assets organized (ie, acme_propensity)', type=str).strip()
   _format_heading('GA Measurement ID', 'yellow')
   ga_measurement_id = click.prompt(
-    'What the Google Analytics Measurement ID', default='G-G5YB23XTTW')
+    'What the Google Analytics Measurement ID', default='G-G5YB23XTTW').strip()
   _format_heading('GA API Secret', 'yellow')
-  ga_api_secret = click.prompt(
+  ga_api_secret = 
+  (
     'What the Google Analytics API secret', type=str)
   _format_heading('GA BigQuery Frequency', 'yellow')
   frequencies = ['Daily Only', 'Daily & Streaming', 'Streaming Only']
@@ -1548,10 +1549,10 @@ def _get_ua_config(stage_name, ml='vertex'):
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
     'Come up with a unique namespace to keep your \n'
-    'assets organized (ie, acme_propensity)', type=str)
+    'assets organized (ie, acme_propensity)', type=str).strip()
   _format_heading('GA Account ID', 'yellow')
   ga_account_id = click.prompt(
-    'What the Google Analytics UA ID', default='UA-12345678-9')
+    'What the Google Analytics UA ID', default='UA-12345678-9').strip()
   account_id = _check_ga_account_id(ga_account_id)
   identifier = ['GA Client ID', 'User ID']
   _format_heading('GA Join Key type', 'yellow')
@@ -1615,7 +1616,7 @@ def _get_ua_config(stage_name, ml='vertex'):
     '--------------------------------------------')
   click.echo(msg)
   ga_dataset_id = click.prompt(
-    'What is the Google Analytics Dataset ID', type=str)
+    'What is the Google Analytics Dataset ID', type=str).strip()
   ad_accounts = ['DV360', 'Google Ads', 'Google Ads MCC']
   _format_heading('Audience Destination', 'green')
   click.echo(
@@ -1630,7 +1631,7 @@ def _get_ua_config(stage_name, ml='vertex'):
   linked_ad_account_type = linked_ad_account_types[str(linked_ad_account)]
   _format_heading('Audience Destination ID', 'green')
   linked_ad_account_id = click.prompt(
-    f'What is the account ID for the {ad_accounts[linked_ad_account]} account', type=str)
+    f'What is the account ID for the {ad_accounts[linked_ad_account]} account', type=str).strip()
   _format_heading('Acknowledgments', 'red')
   cloud_storage = (
     f'Did you create a bucket in Cloud Storage named "{bq_namespace}", yet?')
