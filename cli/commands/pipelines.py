@@ -3,6 +3,280 @@ import click
 from cli.utils import constants
 import datetime
 
+GA4_VERTEX_TRAINING_PIPELINE = """{{
+  "name": "{pipeline_name} (GA4) [{creation_time}]",
+  "jobs": [
+    "hash_start_conditions": [],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {{
+          "description": null,
+          "value": "{formatting_query}",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        }},
+        {{
+          "description": null,
+          "value": "{crmint_project}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        }},
+        {{
+          "description": null,
+          "value": "{{% BQ_DATASET %}}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        }},
+        {{
+          "description": null,
+          "value": "{{% BQ_NAMESPACE %}}_dataset",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }},
+        {{
+          "description": null,
+          "value": "{{% BQ_DATASET_LOCATION %}}",
+          "label": "BQ Dataset Location",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_location"
+        }},
+        {{
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }}
+      ],
+      "id": "format",
+      "name": "Format Data"
+    }},
+    {{
+      "id": "create_dataset",
+      "name": "Create Dataset",
+      "worker_class": "BQToVertexAIDataset",
+      "params": [
+        {{
+          "name": "bq_project_id",
+          "value": "{crmint_project}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "bq_dataset_id",
+          "value": "{{% BQ_DATASET %}}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "bq_table_id",
+          "value": "{{% BQ_NAMESPACE %}}_dataset",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "bq_dataset_location",
+          "value": "{{% BQ_DATASET_LOCATION %}}",
+          "label": "BQ Dataset Location",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "vertex_ai_dataset_name",
+          "value": "{{% BQ_NAMESPACE %}}_dataset",
+          "label": "Vertex AI Dataset Name",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }}
+      ],
+      "hash_start_conditions": [
+        {{
+          "preceding_job_id": "format",
+          "condition": "success"
+        }}
+      ]
+    }},
+    {{
+      "id": "vertex_ai_trainer",
+      "name": "Vertex AI Trainer",
+      "worker_class": "VertexAITabularTrainer",
+      "params": [
+        {{
+          "name": "project_id",
+          "value": "{crmint_project}",
+          "label": "Project ID",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "region",
+          "value": "{project_region},
+          "label": "Region",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "vertexai_dataset_name",
+          "value": "{{% BQ_NAMESPACE %}}_dataset",
+          "label": "Vertex AI Dataset Name",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "prediction_type",
+          "value": "regression",
+          "label": "Prediction Type (regression or classification)",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "target_column",
+          "value": "will_convert_later",
+          "label": "Target Column",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "budget_hours",
+          "value": "1",
+          "label": "Training Budget Hours (1 thru 72)",
+          "is_required": false,
+          "type": "number",
+          "description": null
+        }},
+        {{
+          "name": "vertexai_model_name",
+          "value": "{{% BQ_NAMESPACE %}}_model",
+          "label": "Vertex AI Model Name",
+          "is_required": false,
+          "type": "string",
+          "description": null
+        }}
+      ],
+      "hash_start_conditions": [
+        {{
+          "preceding_job_id": "create_dataset",
+          "condition": "success"
+        }}
+      ]
+    }}
+  ],
+  {training_params}
+  ],
+  "schedules": [
+    {{
+      "cron": "0 0  * * 0"
+    }}
+  ]
+}}""".strip()
+
+VERTEX_TRAIN = """      EXCEPT (user_pseudo_id)\\r\\n"""
+VERTEX_PREDICT = ''
+GA4_VERTEX_FORMAT_QUERY = """#standardSQL\\r\\n{create_dataset}WITH \\r\\n      visitors_labeled AS ( \\r\\n          SELECT\\r\\n              user_pseudo_id, \\r\\n              MIN(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN event_timestamp END) AS event_session, \\r\\n              MIN(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN event_date END) AS event_date, \\r\\n              MAX(\\r\\n                  CASE \\r\\n                  WHEN {objective}\\r\\n                  THEN 1 \\r\\n                  ELSE 0 END) AS label\\r\\n          FROM \\r\\n              `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n          WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                  FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                  AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n          GROUP BY \\r\\n              user_pseudo_id\\r\\n      ),\\r\\n      user_model AS (\\r\\n          SELECT \\r\\n              GA.user_pseudo_id,\\r\\n              IFNULL(MAX(label), 0) AS will_convert_later,\\r\\n              MAX(geo.city) AS city,\\r\\n              MAX(geo.region) AS region,\\r\\n              MAX(traffic_source.medium) AS medium,\\r\\n              MAX(traffic_source.source) AS source,\\r\\n              MAX(device.web_info.browser) AS browser,\\r\\n              COUNT(DISTINCT event_name) AS events,\\r\\n              MAX(event_name) AS common_events,\\r\\n              MAX(device.category) AS device_category,\\r\\n              MAX(device.operating_system) AS device_operating_system,\\r\\n              MAX(platform) AS platform\\r\\n          FROM \\r\\n              `{ga4_bigquery_export_project}.{{% BQ_DATASET %}}.{table_suffix}*` AS GA\\r\\n          LEFT JOIN visitors_labeled AS Labels\\r\\n              ON GA.user_pseudo_id = Labels.user_pseudo_id\\r\\n          WHERE \\r\\n              _TABLE_SUFFIX BETWEEN\\r\\n                  FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH))\\r\\n                  AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())\\r\\n              AND (\\r\\n                  GA.event_timestamp < IFNULL(event_session, 0)\\r\\n                  OR event_session IS NULL)\\r\\n          GROUP BY \\r\\n              GA.user_pseudo_id\\r\\n      )\\r\\n  SELECT\\r\\n      *\\r\\n{train_or_predict}  FROM\\r\\n      user_model\\r\\n  LIMIT 100000000\\r\\n);"""
+GA4_VERTEX_TRAINING_PARAMS = """
+  "params": [
+    {{
+      "name": "BQ_DATASET",
+      "value": "{bq_dataset}",
+      "type": "text"
+    }},
+    {{
+      "name": "BQ_DATASET_LOCATION",
+      "value": "{bq_dataset_location}",
+      "type": "text"
+    }},
+    {{
+      "name": "BQ_NAMESPACE",
+      "value": "{bq_namespace}",
+      "type": "text"
+    }}""".strip()
+
+GA4_VERTEX_BATCH_PREDICT = """
+  {{
+    "id": "batch_predict",
+    "name": "Batch Predict",
+    "worker_class": "VertexAIToBQPredictor",
+    "params": [
+      {{
+        "name": "vertexai_model_name",
+        "value": "{{% BQ_NAMESPACE %}}_model",
+        "label": "Vertex AI Model Name",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }},
+      {{
+        "name": "vertexai_batch_prediction_name",
+        "value": "{{% BQ_NAMESPACE %}}_batch_prediction",
+        "label": "Vertex AI Batch Prediction Name",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }},
+      {{
+        "name": "region",
+        "value": "{project_region}",
+        "label": "Region",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }},
+      {{
+        "name": "bq_project_id",
+        "value": "{crmint_project}",
+        "label": "BQ Project ID",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }},
+      {{
+        "name": "bq_dataset_id",
+        "value": "{{% BQ_DATASET %}}",
+        "label": "BQ Dataset ID",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }},
+      {{
+        "name": "bq_table_id",
+        "value": "{{% BQ_NAMESPACE %}}_predictions",
+        "label": "BQ Table ID",
+        "is_required": false,
+        "type": "string",
+        "description": null
+      }}
+    ],
+    "hash_start_conditions": [
+      {{
+        "preceding_job_id": "predict",
+        "condition": "success"
+      }}
+    ]
+  }}""".strip()
+
 GA4_TRAINING_PIPELINE = """{{
   {training_params}
   ],
@@ -49,7 +323,7 @@ GA4_TRAINING_PIPELINE = """{{
   }}""".strip()
 
 GA4_PREDICTION_PIPELINE = """{{
-    {prediction_params}
+    {params}
     ],
     "jobs": [
       {{
@@ -58,7 +332,7 @@ GA4_PREDICTION_PIPELINE = """{{
         "params": [
           {{
             "description": null,
-            "value": "{prediction_query}",
+            "value": "{query}",
             "label": "Query",
             "is_required": false,
             "type": "sql",
@@ -108,10 +382,11 @@ GA4_PREDICTION_PIPELINE = """{{
         "id": "predict",
         "name": "Predict"
       }},
+      {vertex_batch_predict}
       {{
         "hash_start_conditions": [
           {{
-            "preceding_job_id": "predict",
+            "preceding_job_id": "{extract_preceding_job}",
             "condition": "success"
           }}
         ],
@@ -1087,11 +1362,12 @@ def _check_ga_account_id(ga_id):
       default='UA-12345678-9')
     _check_ga_account_id(ga_account_id)
 
-def _get_ga4_config(stage_name):
+def _get_ga4_config(stage_name, ml='vertex'):
   cid = 'user_pseudo_id'
   table_suffix = 'events_'
   optimize_objective = 'ecommerce.purchase_revenue > 0'
   crmint_project = stage_name.project_id_gae
+  project_region = stage_name.project_region
   creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = """\\r\\n        MODEL_TYPE = 'AUTOML_REGRESSOR',\\r\\n        INPUT_LABEL_COLS = ['will_convert_later'],\\r\\n        BUDGET_HOURS = 3.0"""  
   mo = _model_objectives(GA4_MODEL_OBJECTIVES)
@@ -1174,12 +1450,50 @@ def _get_ga4_config(stage_name):
     pipeline_name=training_pipeline_name,
     creation_time=creation_time)
   prediction = GA4_PREDICTION_PIPELINE.format(
-    prediction_params=ga4_params,
-    prediction_query=prediction_query,
+    params=ga4_params,
+    query=prediction_query,
     crmint_project=crmint_project,
     extract_query=extract_query,
     pipeline_name=prediction_pipeline_name,
-    creation_time=creation_time)
+    creation_time=creation_time,
+    extract_preceding_job='predict')
+  if ml == 'vertex':
+    extract_query = GA4_EXTRACT_QUERY.format(
+      table_suffix=table_suffix,
+      ga4_bigquery_export_project=bigquery_export_project,
+      model_objective=objective,
+      crmint_project=crmint_project)
+    format_training = GA4_VERTEX_FORMAT_QUERY.format(
+      create_dataset=create_dataset,
+      objective=optimize_objective,
+      ga4_bigquery_export_project=bigquery_export_project,
+      table_suffix=table_suffix,
+      train_or_predict=VERTEX_TRAIN)
+    format_prediction = GA4_VERTEX_FORMAT_QUERY.format(
+      create_dataset=create_dataset,
+      objective=optimize_objective,
+      ga4_bigquery_export_project=bigquery_export_project,
+      table_suffix=table_suffix,
+      train_or_predict=VERTEX_PREDICT)
+    training = GA4_VERTEX_TRAINING_PIPELINE.format(
+      training_params=ga4_params,
+      crmint_project=crmint_project,
+      project_region=project_region,
+      formatting_query=format_training,
+      creation_time=creation_time,
+      pipeline_name=training_pipeline_name)
+    vertex_batch_predict = GA4_VERTEX_BATCH_PREDICT.format(
+      project_region=project_region,
+      crmint_project=crmint_project)
+    prediction = GA4_PREDICTION_PIPELINE.format(
+      params=ga4_params,
+      query=format_prediction,
+      crmint_project=crmint_project,
+      extract_query=extract_query,
+      pipeline_name=prediction_pipeline_name,
+      creation_time=creation_time,
+      extract_preceding_job='batch_predict',
+      vertex_batch_predict=vertex_batch_predict)
   training_filename = 'ga4_training_pipeline.json'
   prediction_filename = 'ga4_prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
