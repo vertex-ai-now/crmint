@@ -632,7 +632,7 @@ UA_TRAINING_PIPELINE = """{{
         "name": "{training_name}"
       }}
     ],
-    "name": "{training_pipeline_name} [{creation_time}]",
+    "name": "{training_pipeline_name} (UA) [{creation_time}]",
     "schedules": [
       {{
         "cron": "0 0 * * 0"
@@ -1243,7 +1243,7 @@ UA_PREDICTION_PIPELINE = """{{
         "name": "Update GA Audiences"
       }}
     ],
-    "name": "{prediction_pipeline_name} [{creation_time}]",
+    "name": "{prediction_pipeline_name} (UA) [{creation_time}]",
     "schedules": [
     {{
         "cron": "0 0 * * * *  "
