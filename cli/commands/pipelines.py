@@ -1324,8 +1324,10 @@ def _cloud_architecture(stage_name):
     create_dataset = '';
   else:
     _format_heading('Google Analytics Export Cloud project ID', 'blue')
-    bigquery_export_project = click.prompt(
-      'What is the Cloud Project ID for your BigQuery Export', type=str)
+    msg = (
+      f'What is the Cloud Project ID for your\n'
+      f'Google Analytics BigQuery Export')
+    bigquery_export_project = click.prompt(msg, type=str)
     create_dataset = """CREATE SCHEMA IF NOT EXISTS `{crmint_project}.{{% BQ_DATASET %}}`;\\r\\n""".format(
         crmint_project=stage_name.project_id_gae)
   return bigquery_export_project, create_dataset, same_project
@@ -1486,7 +1488,7 @@ def _get_ga4_config(stage_name, ml='vertex'):
       table_suffix=table_suffix,
       train_or_predict=GA4_VERTEX_TRAIN)
     format_prediction = GA4_VERTEX_FORMAT_QUERY.format(
-      create_dataset=create_dataset,
+      create_dataset='',
       objective=optimize_objective,
       ga4_bigquery_export_project=bigquery_export_project,
       table_suffix=table_suffix,
