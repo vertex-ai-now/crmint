@@ -1369,6 +1369,7 @@ def _get_ga4_config(stage_name, ml='vertex'):
   optimize_objective = 'ecommerce.purchase_revenue > 0'
   crmint_project = stage_name.project_id_gae
   project_region = stage_name.project_region
+  vertex_batch_predict = ''
   creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = """\\r\\n        MODEL_TYPE = 'AUTOML_REGRESSOR',\\r\\n        INPUT_LABEL_COLS = ['will_convert_later'],\\r\\n        BUDGET_HOURS = 3.0"""  
   mo = _model_objectives(GA4_MODEL_OBJECTIVES)
@@ -1457,7 +1458,8 @@ def _get_ga4_config(stage_name, ml='vertex'):
     extract_query=extract_query,
     pipeline_name=prediction_pipeline_name,
     creation_time=creation_time,
-    extract_preceding_job='predict')
+    extract_preceding_job='predict',
+    vertex_batch_predict=vertex_batch_predict)
   if ml == 'vertex':
     extract_query = GA4_EXTRACT_QUERY.format(
       table_suffix=table_suffix,
