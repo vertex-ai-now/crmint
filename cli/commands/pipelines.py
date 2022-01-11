@@ -4,7 +4,7 @@ from cli.utils import constants
 import datetime
 
 VERTEX_TRAINING_PIPELINE = """{{
-  "name": "{pipeline_name} (GA4) [{creation_time}]",
+  "name": "{pipeline_name} ({ga_platform}) [{creation_time}]",
   "jobs": [
     {{
       "hash_start_conditions": [],
@@ -1497,7 +1497,8 @@ def _get_ga4_config(stage_name, ml='vertex'):
       project_region=project_region,
       formatting_query=format_training,
       creation_time=creation_time,
-      pipeline_name=training_pipeline_name)
+      pipeline_name=training_pipeline_name,
+      ga_platform='GA4')
     vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
       project_region=project_region,
       crmint_project=crmint_project)
@@ -1897,7 +1898,8 @@ def _get_ua_config(stage_name, ml='vertex'):
       project_region=project_region,
       formatting_query=format_training,
       creation_time=creation_time,
-      pipeline_name=training_pipeline_name)
+      pipeline_name=training_pipeline_name,
+      ga_platform='UA')
     vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
       project_region=project_region,
       crmint_project=crmint_project)
