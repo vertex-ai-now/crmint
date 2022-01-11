@@ -194,7 +194,7 @@ GA4_VERTEX_TRAINING_PIPELINE = """{{
   ]
 }}""".strip()
 
-MAX_PREDICTION_TABLE = """  maxPrediction AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('predictions_') + 1) AS latest\r\n    FROM `{crmint_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE 'predictions_%'\\r\\n  ),\\r\\n"""
+MAX_PREDICTION_TABLE = """  maxPrediction AS (\\r\\n    SELECT SUBSTR(MAX(table_id), LENGTH('predictions_') + 1) AS latest\\r\\n    FROM `{crmint_project}.{{% BQ_DATASET %}}.__TABLES_SUMMARY__`\\r\\n    WHERE table_id LIKE 'predictions_%'\\r\\n  ),\\r\\n"""
 MAX_PREDICTION_WHERE = """predictions_*`\\r\\n    WHERE _TABLE_SUFFIX IN (SELECT latest FROM maxPrediction)\\r\\n"""
 VERTEX_TRAIN = """      EXCEPT (user_pseudo_id)\\r\\n"""
 VERTEX_PREDICT = ''
