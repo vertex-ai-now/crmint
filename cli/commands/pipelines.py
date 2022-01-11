@@ -383,7 +383,7 @@ GA4_PREDICTION_PIPELINE = """{{
           }}
         ],
         "id": "predict",
-        "name": "Predict"
+        "name": "{vertex_name_format}Predict"
       }},
       {vertex_batch_predict}
       {{
@@ -1464,7 +1464,8 @@ def _get_ga4_config(stage_name, ml='vertex'):
     pipeline_name=prediction_pipeline_name,
     creation_time=creation_time,
     extract_preceding_job='predict',
-    vertex_batch_predict=vertex_batch_predict)
+    vertex_batch_predict=vertex_batch_predict,
+    vertex_name_format='')
   if ml == 'vertex':
     extract_query = GA4_EXTRACT_QUERY.format(
       table_suffix=table_suffix,
@@ -1503,7 +1504,8 @@ def _get_ga4_config(stage_name, ml='vertex'):
       pipeline_name=prediction_pipeline_name,
       creation_time=creation_time,
       extract_preceding_job='batch_predict',
-      vertex_batch_predict=vertex_batch_predict)
+      vertex_batch_predict=vertex_batch_predict,
+      vertex_name_format='Batch ')
   training_filename = 'ga4_training_pipeline.json'
   prediction_filename = 'ga4_prediction_pipeline.json'
   training_filepath = os.path.join(constants.STAGE_DIR, training_filename)
