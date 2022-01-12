@@ -40,7 +40,7 @@ def bqml(stage_name, debug):
   if platform == 'GA4':
     training_file, prediction_file = pipelines._get_ga4_config(stage, ml='bqml')
   if platform == 'Universal Analytics':
-    training_file, prediction_file = pipelines._get_ua_config(stage)
+    training_file, prediction_file = pipelines._get_ua_config(stage, ml='bqml')
   local_db_uri = stage.local_db_uri
   env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
   cloud.install_required_packages(stage)
