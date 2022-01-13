@@ -71,6 +71,7 @@ class VertexAITabularTrainer(VertexAIWorker):
     pipeline_client = self._get_vertexai_pipeline_client(
       self._params['region'])
     pipeline_name = job.resource_name
+    self.log_info(f'Pipeline resource name: {pipeline_name}')
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
 
