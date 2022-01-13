@@ -54,6 +54,8 @@ class VertexAITabularTrainer(VertexAIWorker):
     budget_hours = self._params['budget_hours']
     target_column = self._params['target_column']
     vertexai_model_name = self._params['vertexai_model_name']
+    region = self._params['region']
+    vertexai_region = region if region[-1].isdigit() else f'{region}1'
     dataset = self._get_vertex_tabular_dataset()
     if not dataset:
       self.log_info('No Vertex AI dataset found. Try again.')
@@ -68,10 +70,8 @@ class VertexAITabularTrainer(VertexAIWorker):
       sync=False,
     )
     job.wait_for_resource_creation()
-    pipeline_client = self._get_vertexai_pipeline_client(
-      self._params['region'])
+    pipeline_client = self._get_vertexai_pipeline_client(vertexai_region)
     pipeline_name = job.resource_name
-    self.log_info(f'Pipeline resource name: {pipeline_name}')
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
 
