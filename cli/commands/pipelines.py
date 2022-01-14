@@ -2,6 +2,10 @@ import os
 import click
 from cli.utils import constants
 import datetime
+from cli.utils import shared
+
+
+BQ = '$GOOGLE_CLOUD_SDK/bin/bq --quiet'
 
 VERTEX_TRAINING_PIPELINE = """{{
   "name": "{pipeline_name} ({ga_platform}) [{creation_time}]",
@@ -1352,13 +1356,19 @@ def _cloud_architecture(stage_name):
         crmint_project=stage_name.project_id_gae)
   return bigquery_export_project, create_dataset, same_project
 
-def _bigquery_config():
+def _bigquery_config(same_project):
   _format_heading('BigQuery Dataset ID', 'blue')
   bq_dataset_id = click.prompt(
     'What is your Google Analytics BigQuery dataset ID', type=str).strip()
-  _format_heading('BigQuery Dataset Location', 'blue')
-  bq_dataset_location = click.prompt(
-    'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
+  if same_project:
+    cmd = f'{BQ} show --format=prettyjson {bq_dataset_id}'
+    status, out, err = shared.execute_command('Getting dataset location', cmd, stream_output_in_debug=False)
+    print(out)
+    bq_dataset_location = out
+  else:
+    _format_heading('BigQuery Dataset Location', 'blue')
+    bq_dataset_location = click.prompt(
+      'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
   return bq_dataset_id, bq_dataset_location
 
 def _custom_dimension_propensity_config():
@@ -1404,7 +1414,7 @@ def _get_ga4_config(stage_name, ml='vertex'):
   if objective == 'Event Propensity':
     event_name = _ga4_event_propensity_config()
   bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
-  bq_dataset_id, bq_dataset_location = _bigquery_config()
+  bq_dataset_id, bq_dataset_location = _bigquery_config(same_project)
   if ml == 'vertex' and project_region not in VERTEX_AI_REGIONS:
     _format_heading('Vertex AI Region', 'blue')
     for i, r in enumerate(VERTEX_AI_REGIONS):
@@ -1571,7 +1581,7 @@ def _get_ua_config(stage_name, ml='vertex'):
   if objective == 'Custom Dimension Propensity':
     custom_dimension_index, custom_dimension_value, cd_scope_query = _custom_dimension_propensity_config()
   bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
-  bq_dataset_id, bq_dataset_location = _bigquery_config()
+  bq_dataset_id, bq_dataset_location = _bigquery_config(same_project)
   if ml == 'vertex' and project_region not in VERTEX_AI_REGIONS:
     _format_heading('Vertex AI Region', 'blue')
     for i, r in enumerate(VERTEX_AI_REGIONS):
