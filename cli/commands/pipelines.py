@@ -189,7 +189,7 @@ VERTEX_TRAINING_PIPELINE = """{{
   ],
   "schedules": [
     {{
-      "cron": "0 0  * * 0"
+      "cron": "0 0 * * 0"
     }}
   ]
 }}""".strip()
@@ -1246,7 +1246,7 @@ UA_PREDICTION_PIPELINE = """{{
     "name": "{prediction_pipeline_name} (UA) [{creation_time}]",
     "schedules": [
     {{
-        "cron": "0 0 * * * *  "
+        "cron": "0 0 * * *"
     }}
     ]
 }}""".strip()
@@ -1254,6 +1254,26 @@ GA4_MODEL_OBJECTIVES = ['Purchase Propensity', 'Event Propensity']
 UA_MODEL_OBJECTIVES = ['Purchase Propensity', 'Repeat Purchase Propensity',
                        'Event Propensity', 'Destination Propensity',
                        'Product Propensity', 'Custom Dimension Propensity']
+VERTEX_AI_REGIONS = [
+  'asia-east1',
+  'asia-east2',
+  'asia-northeast1',
+  'asia-northeast3',
+  'asia-south1',
+  'asia-southeast1',
+  'australia-southeast1',
+  'europe-west1',
+  'europe-west2',
+  'europe-west3',
+  'europe-west4',
+  'europe-west6',
+  'northamerica-northeast1',
+  'northamerica-northeast2',
+  'us-central1',
+  'us-east1',
+  'us-east4',
+  'us-west1',
+  'us-west2']
 
 def _format_heading(label, color):
   centered = label.center(40)
@@ -1375,7 +1395,7 @@ def _get_ga4_config(stage_name, ml='vertex'):
   table_suffix = 'events_'
   optimize_objective = 'ecommerce.purchase_revenue > 0'
   crmint_project = stage_name.project_id_gae
-  project_region = stage_name.project_region
+  project_region = stage_name.project_sql_region
   vertex_batch_predict = ''
   creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = """\\r\\n        MODEL_TYPE = 'AUTOML_REGRESSOR',\\r\\n        INPUT_LABEL_COLS = ['will_convert_later'],\\r\\n        BUDGET_HOURS = 3.0"""  
@@ -1385,6 +1405,13 @@ def _get_ga4_config(stage_name, ml='vertex'):
     event_name = _ga4_event_propensity_config()
   bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
   bq_dataset_id, bq_dataset_location = _bigquery_config()
+  if ml == 'vertex' and project_region not in VERTEX_AI_REGIONS:
+    _format_heading('Vertex AI Region', 'blue')
+    for i, r in enumerate(VERTEX_AI_REGIONS):
+      click.echo(f'{i + 1}) {r}')
+    region_ind = click.prompt(
+      'Enter the index for your Vertex AI region', type=int) - 1
+    project_region = VERTEX_AI_REGIONS[region_ind]
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
     'Come up with a unique namespace to keep your\n'
@@ -1530,7 +1557,7 @@ def _get_ua_config(stage_name, ml='vertex'):
   cd_scope_query = ''
   vertex_batch_predict = ''
   crmint_project = stage_name.project_id_gae
-  project_region = stage_name.project_region
+  project_region = stage_name.project_sql_region
   creation_time = datetime.datetime.now().replace(microsecond=0).isoformat()
   model_options = "\\r\\n        MODEL_TYPE = 'BOOSTED_TREE_REGRESSOR',\\r\\n        BOOSTER_TYPE = 'GBTREE',\\r\\n        MAX_ITERATIONS = 50,\\r\\n        SUBSAMPLE = 0.5,\\r\\n        NUM_PARALLEL_TREE = 2,\\r\\n        DATA_SPLIT_METHOD = 'NO_SPLIT',\\r\\n        EARLY_STOP = FALSE,\\r\\n        INPUT_LABEL_COLS = ['will_convert_later']"
   mo = _model_objectives(UA_MODEL_OBJECTIVES)
@@ -1545,6 +1572,13 @@ def _get_ua_config(stage_name, ml='vertex'):
     custom_dimension_index, custom_dimension_value, cd_scope_query = _custom_dimension_propensity_config()
   bigquery_export_project, create_dataset, same_project = _cloud_architecture(stage_name)
   bq_dataset_id, bq_dataset_location = _bigquery_config()
+  if ml == 'vertex' and project_region not in VERTEX_AI_REGIONS:
+    _format_heading('Vertex AI Region', 'blue')
+    for i, r in enumerate(VERTEX_AI_REGIONS):
+      click.echo(f'{i + 1}) {r}')
+    region_ind = click.prompt(
+      'Enter the index for your Vertex AI region', type=int) - 1
+    project_region = VERTEX_AI_REGIONS[region_ind]
   _format_heading('Namespace', 'magenta')
   bq_namespace = click.prompt(
     'Come up with a unique namespace to keep your \n'
