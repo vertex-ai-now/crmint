@@ -55,8 +55,7 @@ class Pipeline(BaseModel):
   jobs = relationship('Job', backref='pipeline',
                       lazy='dynamic')
   run_on_schedule = Column(Boolean, nullable=False, default=False)
-  schedules = relationship('Schedule', lazy='dynamic',
-                           back_populates='pipeline')
+  schedules = relationship('Schedule', lazy='dynamic')
   params = relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
 
   class STATUS:  # pylint: disable=too-few-public-methods
@@ -276,24 +275,12 @@ class Job(BaseModel):
   params = relationship('Param', backref='job', lazy='dynamic')
   start_conditions = relationship(
       'StartCondition',
-      primaryjoin='Job.id==StartCondition.job_id',
-      back_populates='job')
-  affected_conditions = relationship(
-      'StartCondition',
-      primaryjoin='Job.id==StartCondition.preceding_job_id',
-      back_populates='preceding_job')
+      primaryjoin='Job.id==StartCondition.job_id')
   dependent_jobs = relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
-      secondaryjoin='StartCondition.job_id==Job.id',
-      back_populates='affecting_jobs')
-  affecting_jobs = relationship(
-      'Job',
-      secondary='start_conditions',
-      primaryjoin='Job.id==StartCondition.job_id',
-      secondaryjoin='StartCondition.preceding_job_id==Job.id',
-      back_populates='dependent_jobs')
+      secondaryjoin='StartCondition.job_id==Job.id')
 
   class STATUS:  # pylint: disable=too-few-public-methods
     IDLE = 'idle'
@@ -593,10 +580,8 @@ class StartCondition(BaseModel):
   preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
   condition = Column(String(255))
 
-  job = relationship('Job', foreign_keys=[job_id],
-                     back_populates='start_conditions')
-  preceding_job = relationship('Job', foreign_keys=[preceding_job_id],
-                     back_populates='affected_conditions')
+  job = relationship('Job', foreign_keys=[job_id])
+  preceding_job = relationship('Job', foreign_keys=[preceding_job_id])
 
   class CONDITION:  # pylint: disable=too-few-public-methods
     SUCCESS = 'success'
@@ -630,8 +615,7 @@ class Schedule(BaseModel):  # pylint: disable=too-few-public-methods
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
   cron = Column(String(255))
 
-  pipeline = relationship('Pipeline', foreign_keys=[pipeline_id],
-                          back_populates='schedules')
+  pipeline = relationship('Pipeline', foreign_keys=[pipeline_id])
 
 
 class GeneralSetting(BaseModel):  # pylint: disable=too-few-public-methods
