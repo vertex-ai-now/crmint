@@ -1,5 +1,6 @@
 import os
 import click
+import json
 from cli.utils import constants
 import datetime
 from cli.utils import shared
@@ -1362,13 +1363,15 @@ def _bigquery_config(same_project):
     'What is your Google Analytics BigQuery dataset ID', type=str).strip()
   if same_project:
     cmd = f'{BQ} show --format=prettyjson {bq_dataset_id}'
-    status, out, err = shared.execute_command('Getting dataset location', cmd, stream_output_in_debug=False)
-    print(out)
-    bq_dataset_location = out
-  else:
-    _format_heading('BigQuery Dataset Location', 'blue')
-    bq_dataset_location = click.prompt(
-      'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
+    status, out, err = shared.execute_command(
+      'Getting dataset location', cmd, stream_output_in_debug=False, silent_step_name=True)
+    if status == 0:
+      json_out = json.loads(out)
+      bq_dataset_location = json_out.get('location')
+    else:
+      _format_heading('BigQuery Dataset Location', 'blue')
+      bq_dataset_location = click.prompt(
+        'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
   return bq_dataset_id, bq_dataset_location
 
 def _custom_dimension_propensity_config():
