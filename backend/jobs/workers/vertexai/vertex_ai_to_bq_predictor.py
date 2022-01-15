@@ -47,6 +47,8 @@ class VertexAIToBQPredictor(VertexAIWorker):
     project_id = self._params['bq_project_id']
     dataset_id = self._params['bq_dataset_id']
     table_id = self._params['bq_table_id']
+    region = self._params['region']
+    vertexai_region = region if region[-1].isdigit() else f'{region}1'
     batch_prediction_name = self._params['vertexai_batch_prediction_name']
     if batch_prediction_name is None:
       batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'    
@@ -59,8 +61,7 @@ class VertexAIToBQPredictor(VertexAIWorker):
       sync = False,
     )
     job.wait_for_resource_creation()
-    job_client = self._get_vertexai_job_client(
-      self._params['region'])
+    job_client = self._get_vertexai_job_client(vertexai_region)
     batch_prediction_name = job.resource_name
     batch_prediction_job = self._get_batch_prediction_job(
       job_client, batch_prediction_name)
