@@ -85,7 +85,7 @@ class Pipeline(BaseModel):
     return []
 
   def assign_attributes(self, attributes):
-    for key, value in attributes.iteritems():
+    for key, value in attributes.items():
       if key in ['schedules', 'jobs', 'params']:
         continue
       if key == 'run_on_schedule':
@@ -94,7 +94,7 @@ class Pipeline(BaseModel):
       self.__setattr__(key, value)
 
   def save_relations(self, relations):
-    for key, value in relations.iteritems():
+    for key, value in relations.items():
       if key == 'schedules':
         self.assign_schedules(value)
       elif key == 'params':
@@ -140,7 +140,7 @@ class Pipeline(BaseModel):
       return True
     except (InvalidExpression, TypeError, ValueError, SyntaxError) as e:
       inline.close_session()
-      from core import cloud_logging
+      from common import crmint_logging
       job_id = 'N/A'
       worker_class = 'N/A'
       if param.job_id is not None:
@@ -151,7 +151,7 @@ class Pipeline(BaseModel):
         message = 'Invalid pipeline variable "%s": %s' % (param.label, e)
       else:
         message = 'Invalid global variable "%s": %s' % (param.label, e)
-      cloud_logging.logger.log_struct({
+      crmint_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.id,
               'job_id': job_id,
@@ -499,13 +499,13 @@ class Job(BaseModel):
       self.pipeline.job_finished()
 
   def assign_attributes(self, attributes):
-    for key, value in attributes.iteritems():
+    for key, value in attributes.items():
       if key in ['params', 'start_conditions', 'id', 'hash_start_conditions']:
         continue
       self.__setattr__(key, value)
 
   def save_relations(self, relations):
-    for key, value in relations.iteritems():
+    for key, value in relations.items():
       if key == 'params':
         self.assign_params(value)
       elif key == 'start_conditions':
@@ -707,7 +707,7 @@ class Stage(BaseModel):
   sid = Column(String(255))
 
   def assign_attributes(self, attributes):
-    for key, value in attributes.iteritems():
+    for key, value in attributes.items():
       self.__setattr__(key, value)
 
 
