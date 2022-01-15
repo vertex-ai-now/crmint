@@ -93,3 +93,17 @@ class VertexAIWorker(Worker):
       bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
     dataset.wait()
     return dataset.resource_name
+  
+  def _clean_up(clean_up, method, display_name):
+    if clean_up:
+      try:
+        items = method.list(
+          filter=f"display_name={display_name}",
+          order_by="create_time")
+        if items:
+          for i, item in enumerate(items[:-1]):
+            x = items[i]
+            method.delete(x)
+            self.log_info(f'Deleted: {x.resource_name}.')
+      except Exception as e:
+        self.log_info(f'Exception: {e}')
