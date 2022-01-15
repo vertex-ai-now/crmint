@@ -24,7 +24,8 @@ class BQToVertexAIDataset(VertexAIWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
-      ('vertex_ai_dataset_name', 'string', False, '', 'Vertex AI Dataset Name')
+      ('vertex_ai_dataset_name', 'string', False, '', 'Vertex AI Dataset Name'),
+      ('clean_up', 'boolean', True, True, 'Clean Up'),
   ]
 
   aiplatform.init()
@@ -37,6 +38,18 @@ class BQToVertexAIDataset(VertexAIWorker):
       display_name = f'{project_id}.{dataset_id}.{table_id}'
     else:
       display_name = self._params['vertex_ai_dataset_name']
+    if self._params['clean_up']:
+      try:
+        datasets = aiplatform.TabularDataset.list(
+          filter=f"display_name={display_name}",
+          order_by="create_time")
+        if datasets:
+          for i, dataset in enumerate(datasets[:-1]):
+            d = datasets[i]
+            aiplatform.TabularDataset.delete(d)
+            self.log_info(f'Deleted dataset: {d.resource_name}.')
+      except Exception as e:
+        self.log_info(f'Exception: {e}')
     resource_name = self._create_dataset(
       display_name, project_id, dataset_id, table_id)
     self.log_info(f'Dataset created: {resource_name}')
