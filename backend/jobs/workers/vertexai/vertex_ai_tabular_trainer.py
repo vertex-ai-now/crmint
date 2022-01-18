@@ -49,6 +49,20 @@ class VertexAITabularTrainer(VertexAIWorker):
     return aiplatform.AutoMLTabularTrainingJob(
       display_name=f'{vertexai_model_name}',
       optimization_prediction_type=f'{prediction_type}')
+  
+  def _clean_up_models(self):
+    if self._params['clean_up']:
+      vertexai_model_name = self._params['vertexai_model_name']
+      try:
+        models = aiplatform.Model.list(
+          filter=f"display_name={vertexai_model_name}", order_by="create_time")
+        if models:
+          for i, model in enumerate(models[:-1]):
+            m = models[i]
+            aiplatform.Model.delete(m)
+            self.log_info(f'Deleted model: {m.resource_name}.')
+      except Exception as e:
+        self.log_info(f'Exception: {e}')
 
   def _execute_training(self):
     aiplatform.init()
@@ -61,6 +75,9 @@ class VertexAITabularTrainer(VertexAIWorker):
     if not dataset:
       self.log_info('No Vertex AI dataset found. Try again.')
       return
+    if self._params['clean_up']:
+      self._clean_up_training_pipelines(pipeline_client, project, vertexai_region)
+      self._clean_up_models()
     job = self._create_automl_tabular_training_job()
     job.run(
       dataset=dataset,
@@ -73,8 +90,6 @@ class VertexAITabularTrainer(VertexAIWorker):
     job.wait_for_resource_creation()
     pipeline_client = self._get_vertexai_pipeline_client(vertexai_region)
     pipeline_name = job.resource_name
-    if self._params['clean_up']:
-      self._clean_up_training_pipelines(pipeline_client, project, vertexai_region)
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
 
