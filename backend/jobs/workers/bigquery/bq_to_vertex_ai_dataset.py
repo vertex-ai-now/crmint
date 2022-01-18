@@ -50,6 +50,8 @@ class BQToVertexAIDataset(VertexAIWorker):
             self.log_info(f'Deleted dataset: {d.resource_name}.')
       except Exception as e:
         self.log_info(f'Exception: {e}')
-    resource_name = self._create_dataset(
-      display_name, project_id, dataset_id, table_id)
-    self.log_info(f'Dataset created: {resource_name}')
+    dataset = aiplatform.TabularDataset.create(
+      display_name=display_name,
+      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
+    dataset.wait()
+    self.log_info(f'Dataset created: {dataset.resource_name}')
