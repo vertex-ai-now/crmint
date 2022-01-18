@@ -21,6 +21,14 @@ from google.cloud.aiplatform.compat.types import pipeline_state as ps
 from google.cloud.aiplatform.compat.types import job_state as js
 from jobs.workers.worker import Worker, WorkerException
 
+_PIPELINE_COMPLETE_STATES = set(
+  [
+      ps.PipelineState.PIPELINE_STATE_SUCCEEDED,
+      ps.PipelineState.PIPELINE_STATE_FAILED,
+      ps.PipelineState.PIPELINE_STATE_CANCELLED,
+      ps.PipelineState.PIPELINE_STATE_PAUSED,
+  ]
+)
 
 class VertexAIWorker(Worker):
   """Worker that polls job status and respawns itself if the job is not done."""
@@ -99,10 +107,11 @@ class VertexAIWorker(Worker):
           {'state': t.state, 'name': t.name, 'create_time': t.create_time})
       sorted_d = sorted(d, key = lambda i: i['create_time'])
       for i, tp in enumerate(sorted_d[:-1]):
+        training_pipeline_name = tp['name']
         if tp['state'] in _PIPELINE_COMPLETE_STATES:
-          pipeline_client.delete_training_pipeline(name=tp['name'])
+          pipeline_client.delete_training_pipeline(name=training_pipeline_name)
         else:
-          pipeline_client.cancel_training_pipeline(name=tp['name'], timeout=300)
-          pipeline_client.delete_training_pipeline(name=tp['name'])
-        self.log_info(f'Deleted training pipeline: {tp['name']}.')
-
+          pipeline_client.cancel_training_pipeline(
+            name=training_pipeline_name, timeout=300)
+          pipeline_client.delete_training_pipeline(name=training_pipeline_name)
+        self.log_info(f'Deleted training pipeline: {training_pipeline_name}.')
