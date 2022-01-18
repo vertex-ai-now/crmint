@@ -66,6 +66,7 @@ class VertexAITabularTrainer(VertexAIWorker):
 
   def _execute_training(self):
     aiplatform.init()
+    project_id = self._params['project_id']
     budget_hours = self._params['budget_hours']
     target_column = self._params['target_column']
     vertexai_model_name = self._params['vertexai_model_name']
@@ -77,7 +78,7 @@ class VertexAITabularTrainer(VertexAIWorker):
       self.log_info('No Vertex AI dataset found. Try again.')
       return
     if self._params['clean_up']:
-      self._clean_up_training_pipelines(pipeline_client, project, vertexai_region)
+      self._clean_up_training_pipelines(pipeline_client, project_id, vertexai_region)
       self._clean_up_models()
     job = self._create_automl_tabular_training_job()
     job.run(
