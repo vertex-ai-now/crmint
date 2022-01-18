@@ -29,6 +29,7 @@ class VertexAITabularTrainer(VertexAIWorker):
       ('target_column', 'string', True, '', 'Target Column'),
       ('budget_hours', 'number', True, 1, 'Training Budget Hours (1 thru 72)'),
       ('vertexai_model_name', 'string', True, '', 'Vertex AI Model Name'),
+      ('clean_up', 'boolean', True, True, 'Clean Up'),
   ]
 
   def _get_vertex_tabular_dataset(self):
@@ -72,6 +73,8 @@ class VertexAITabularTrainer(VertexAIWorker):
     job.wait_for_resource_creation()
     pipeline_client = self._get_vertexai_pipeline_client(vertexai_region)
     pipeline_name = job.resource_name
+    if self._params['clean_up']:
+      self._clean_up_training_pipelines(pipeline_client, project, vertexai_region)
     pipeline = self._get_training_pipeline(pipeline_client, pipeline_name)
     self._wait_for_pipeline(pipeline)
 
