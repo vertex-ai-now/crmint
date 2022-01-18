@@ -28,6 +28,7 @@ class VertexAIToBQPredictor(VertexAIWorker):
       ('bq_project_id', 'string', True, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('clean_up', 'boolean', True, True, 'Clean Up'),
   ]
 
   def _get_model(self, display_name):
@@ -49,9 +50,12 @@ class VertexAIToBQPredictor(VertexAIWorker):
     table_id = self._params['bq_table_id']
     region = self._params['region']
     vertexai_region = region if region[-1].isdigit() else f'{region}1'
+    job_client = self._get_vertexai_job_client(vertexai_region)
     batch_prediction_name = self._params['vertexai_batch_prediction_name']
     if batch_prediction_name is None:
-      batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'    
+      batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'
+    if self._params['clean_up']:
+      self._clean_up_batch_predictions(job_client, project_id, vertexai_region)
     job = model.batch_predict(
       job_display_name = f'{batch_prediction_name}',
       instances_format = 'bigquery',
@@ -61,7 +65,6 @@ class VertexAIToBQPredictor(VertexAIWorker):
       sync = False,
     )
     job.wait_for_resource_creation()
-    job_client = self._get_vertexai_job_client(vertexai_region)
     batch_prediction_name = job.resource_name
     batch_prediction_job = self._get_batch_prediction_job(
       job_client, batch_prediction_name)
