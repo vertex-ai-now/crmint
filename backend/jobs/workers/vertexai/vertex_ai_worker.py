@@ -30,6 +30,15 @@ _PIPELINE_COMPLETE_STATES = set(
   ]
 )
 
+_JOB_COMPLETE_STATES = set(
+  [
+    js.JobState.JOB_STATE_SUCCEEDED,
+    js.JobState.JOB_STATE_FAILED,
+    js.JobState.JOB_STATE_CANCELLED,
+    js.JobState.JOB_STATE_PAUSED,
+  ]
+)
+
 class VertexAIWorker(Worker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
@@ -115,3 +124,24 @@ class VertexAIWorker(Worker):
             name=training_pipeline_name, timeout=300)
           pipeline_client.delete_training_pipeline(name=training_pipeline_name)
         self.log_info(f'Deleted training pipeline: {training_pipeline_name}.')
+        
+  def _clean_up_batch_predictions(self, job_client, project, region):
+    parent = f'projects/{project}/locations/{region}'
+    batch_predictions = list(
+      job_client.list_batch_prediction_jobs(parent=parent))
+    p = []
+    if batch_predictions:
+      for i, _ in enumerate(batch_predictions):
+        b = batch_predictions[i]
+        p.append(
+          {'state': b.state, 'name': b.name, 'create_time': b.create_time})
+      sorted_d = sorted(p, key = lambda i: i['create_time'])
+      for i, bp in enumerate(sorted_d[:-1]):
+        batch_prediction_name = bp['name']
+        if bp['state'] in _JOB_COMPLETE_STATES:
+          pipeline_client.delete_batch_prediction_job(name=batch_prediction_name)
+        else:
+          pipeline_client.cancel_batch_prediction_job(
+            name=batch_prediction_name, timeout=300)
+          pipeline_client.delete_batch_prediction_job(name=batch_prediction_name)
+        self.log_info(f'Deleted batch prediction: {batch_prediction_name}.')
