@@ -87,9 +87,22 @@ class VertexAIWorker(Worker):
     if job.state == js.JobState.JOB_STATE_FAILED:
       raise WorkerException(f'Job {job.name} failed.')
       
-  def _create_dataset(self, display_name, project_id, dataset_id, table_id):
-    dataset = aiplatform.TabularDataset.create(
-      display_name=display_name,
-      bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
-    dataset.wait()
-    return dataset.resource_name
+  def _clean_up_training_pipelines(self, pipeline_client, project, region):
+    parent = f'projects/{project}/locations/{region}'
+    training_pipelines = list(
+      pipeline_client.list_training_pipelines(parent=parent))
+    d = []
+    if training_pipelines:
+      for i, _ in enumerate(training_pipelines):
+        t = training_pipelines[i]
+        d.append(
+          {'state': t.state, 'name': t.name, 'create_time': t.create_time})
+      sorted_d = sorted(d, key = lambda i: i['create_time'])
+      for i, tp in enumerate(sorted_d[:-1]):
+        if tp['state'] in _PIPELINE_COMPLETE_STATES:
+          pipeline_client.delete_training_pipeline(name=tp['name'])
+        else:
+          pipeline_client.cancel_training_pipeline(name=tp['name'], timeout=300)
+          pipeline_client.delete_training_pipeline(name=tp['name'])
+        self.log_info(f'Deleted training pipeline: {tp['name']}.')
+
