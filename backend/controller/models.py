@@ -259,7 +259,8 @@ class Pipeline(BaseModel):
         jobs.append(job)
         job_mapping[job_data['id']] = job.id
       for job in jobs:
-        job_id = job_mapping.keys()[job_mapping.values().index(job.id)]
+        index = list(job_mapping.values()).index(job.id)
+        job_id = list(job_mapping.keys())[index]
         job_data = next((j for j in data['jobs'] if j['id'] == job_id), None)
         job.assign_hash_start_conditions(job_data['hash_start_conditions'],
                                          job_mapping)
