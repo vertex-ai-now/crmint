@@ -139,9 +139,9 @@ class VertexAIWorker(Worker):
       for i, bp in enumerate(sorted_d[:-1]):
         batch_prediction_name = bp['name']
         if bp['state'] in _JOB_COMPLETE_STATES:
-          pipeline_client.delete_batch_prediction_job(name=batch_prediction_name)
+          job_client.delete_batch_prediction_job(name=batch_prediction_name)
         else:
-          pipeline_client.cancel_batch_prediction_job(
+          job_client.cancel_batch_prediction_job(
             name=batch_prediction_name, timeout=300)
-          pipeline_client.delete_batch_prediction_job(name=batch_prediction_name)
+          job_client.delete_batch_prediction_job(name=batch_prediction_name)
         self.log_info(f'Deleted batch prediction: {batch_prediction_name}.')
