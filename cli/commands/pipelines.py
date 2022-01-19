@@ -111,6 +111,14 @@ VERTEX_TRAINING_PIPELINE = """{{
           "is_required": false,
           "type": "string",
           "description": null
+        }},
+        {{
+          "name": "clean_up",
+          "value": true,
+          "label": "Clean Up",
+          "is_required": false,
+          "type": "boolean",
+          "description": null
         }}
       ],
       "hash_start_conditions": [
@@ -179,6 +187,14 @@ VERTEX_TRAINING_PIPELINE = """{{
           "label": "Vertex AI Model Name",
           "is_required": false,
           "type": "string",
+          "description": null
+        }},
+        {{
+          "name": "clean_up",
+          "value": true,
+          "label": "Clean Up",
+          "is_required": false,
+          "type": "boolean",
           "description": null
         }}
       ],
@@ -276,7 +292,15 @@ VERTEX_BATCH_PREDICT = """
         "is_required": false,
         "type": "string",
         "description": null
-      }}
+      }},
+      {{
+          "name": "clean_up",
+          "value": true,
+          "label": "Clean Up",
+          "is_required": false,
+          "type": "boolean",
+          "description": null
+        }}
     ],
     "hash_start_conditions": [
       {{
