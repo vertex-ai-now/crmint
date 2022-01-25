@@ -1454,9 +1454,17 @@ def _get_ga4_config(stage_name, ml='vertex'):
     'Come up with a unique namespace to keep your\n'
     'assets organized (ie, acme_propensity)', type=str).strip()
   _format_heading('GA Measurement ID', 'yellow')
+  click.echo(
+    f'The Google Analytics Measurement ID can be found\n'
+    f' within Admin > Property Settings > Data Streams.\n'
+    '--------------------------------------------')
   ga_measurement_id = click.prompt(
     'What the Google Analytics Measurement ID', default='G-G5YB23XTTW').strip()
   _format_heading('GA API Secret', 'yellow')
+  click.echo(
+    f'The Google Analytics API Secret can be found\n' 
+    f' within Admin > Property Settings > Data Streams.\n'
+    '--------------------------------------------')
   ga_api_secret = click.prompt(
     'What the Google Analytics API secret', type=str).strip()
   _format_heading('GA BigQuery Frequency', 'yellow')
