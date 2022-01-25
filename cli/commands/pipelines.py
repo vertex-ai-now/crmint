@@ -9,7 +9,7 @@ from cli.utils import shared
 BQ = '$GOOGLE_CLOUD_SDK/bin/bq --quiet'
 
 VERTEX_TRAINING_PIPELINE = """{{
-  "name": "{pipeline_name} ({ga_platform}) [{creation_time}]",
+  "name": "{pipeline_name} ({ga_platform})",
   "jobs": [
     {{
       "hash_start_conditions": [],
@@ -347,7 +347,7 @@ GA4_TRAINING_PIPELINE = """{{
       "name": "{training_name}"
       }}
   ],
-  "name": "{pipeline_name} (GA4) [{creation_time}]",
+  "name": "{pipeline_name} (GA4)",
   "schedules": [
       {{
           "cron": "0 0 * * 0"
@@ -571,7 +571,7 @@ GA4_PREDICTION_PIPELINE = """{{
         "name": "Send Events to GA4"
       }}
     ],
-  "name": "{pipeline_name} (GA4) [{creation_time}]",
+  "name": "{pipeline_name} (GA4)",
   "schedules": [
     {{
       "cron": "0 0 * * *"
@@ -661,7 +661,7 @@ UA_TRAINING_PIPELINE = """{{
         "name": "{training_name}"
       }}
     ],
-    "name": "{training_pipeline_name} (UA) [{creation_time}]",
+    "name": "{training_pipeline_name} (UA)",
     "schedules": [
       {{
         "cron": "0 0 * * 0"
@@ -1272,7 +1272,7 @@ UA_PREDICTION_PIPELINE = """{{
         "name": "Update GA Audiences"
       }}
     ],
-    "name": "{prediction_pipeline_name} (UA) [{creation_time}]",
+    "name": "{prediction_pipeline_name} (UA)",
     "schedules": [
     {{
         "cron": "0 0 * * *"
@@ -1531,15 +1531,13 @@ def _get_ga4_config(stage_name, ml='vertex'):
     training_query=training_query,
     crmint_project=crmint_project,
     training_name=training_name,
-    pipeline_name=training_pipeline_name,
-    creation_time=creation_time)
+    pipeline_name=training_pipeline_name)
   prediction = GA4_PREDICTION_PIPELINE.format(
     params=ga4_params,
     query=prediction_query,
     crmint_project=crmint_project,
     extract_query=extract_query,
     pipeline_name=prediction_pipeline_name,
-    creation_time=creation_time,
     extract_preceding_job='predict',
     vertex_batch_predict=vertex_batch_predict,
     vertex_name_format='')
@@ -1570,7 +1568,6 @@ def _get_ga4_config(stage_name, ml='vertex'):
       crmint_project=crmint_project,
       project_region=project_region,
       formatting_query=format_training,
-      creation_time=creation_time,
       pipeline_name=training_pipeline_name,
       ga_platform='GA4')
     vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
@@ -1582,7 +1579,6 @@ def _get_ga4_config(stage_name, ml='vertex'):
       crmint_project=crmint_project,
       extract_query=extract_query,
       pipeline_name=prediction_pipeline_name,
-      creation_time=creation_time,
       extract_preceding_job='batch_predict',
       vertex_batch_predict=vertex_batch_predict,
       vertex_name_format='Format ')
@@ -1935,8 +1931,7 @@ def _get_ua_config(stage_name, ml='vertex'):
     training_query=training_query,
     crmint_project=crmint_project,
     training_name=training_name,
-    training_pipeline_name=training_pipeline_name,
-    creation_time=creation_time)
+    training_pipeline_name=training_pipeline_name)
   prediction = UA_PREDICTION_PIPELINE.format(
     query=prediction_query,
     params=prediction_params,
@@ -1947,7 +1942,6 @@ def _get_ua_config(stage_name, ml='vertex'):
     cid=cid,
     scope_query=scope_query,
     model_objective=objective,
-    creation_time=creation_time,
     extract_preceding_job='predict',
     vertex_batch_predict=vertex_batch_predict,
     vertex_name_format='',
@@ -1978,7 +1972,6 @@ def _get_ua_config(stage_name, ml='vertex'):
       crmint_project=crmint_project,
       project_region=project_region,
       formatting_query=format_training,
-      creation_time=creation_time,
       pipeline_name=training_pipeline_name,
       ga_platform='UA')
     vertex_batch_predict = VERTEX_BATCH_PREDICT.format(
@@ -1994,7 +1987,6 @@ def _get_ua_config(stage_name, ml='vertex'):
       cid=cid,
       scope_query=scope_query,
       model_objective=objective,
-      creation_time=creation_time,
       extract_preceding_job='batch_predict',
       vertex_batch_predict=vertex_batch_predict,
       vertex_name_format='Format ',
