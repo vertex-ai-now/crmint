@@ -1396,6 +1396,10 @@ def _bigquery_config(same_project):
       _format_heading('BigQuery Dataset Location', 'blue')
       bq_dataset_location = click.prompt(
         'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
+  else:
+    _format_heading('BigQuery Dataset Location', 'blue')
+    bq_dataset_location = click.prompt(
+      'What is the location of your Google Analytics BigQuery dataset', type=str).strip()
   return bq_dataset_id, bq_dataset_location
 
 def _custom_dimension_propensity_config():
