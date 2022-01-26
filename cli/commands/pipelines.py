@@ -1463,14 +1463,14 @@ def _get_ga4_config(stage_name, ml='vertex'):
     f'within Admin > Property Settings > Data Streams.\n'
     '--------------------------------------------')
   ga_measurement_id = click.prompt(
-    'What the Google Analytics Measurement ID', default='G-G5YB23XTTW').strip()
+    'What is the Google Analytics Measurement ID', default='G-G5YB23XTTW').strip()
   _format_heading('GA API Secret', 'yellow')
   click.echo(
     f'The Google Analytics API Secret can be found\n' 
     f'within Admin > Property Settings > Data Streams.\n'
     '--------------------------------------------')
   ga_api_secret = click.prompt(
-    'What the Google Analytics API secret', type=str).strip()
+    'What is the Google Analytics API secret', type=str).strip()
   _format_heading('GA BigQuery Frequency', 'yellow')
   frequencies = ['Daily Only', 'Daily & Streaming', 'Streaming Only']
   for i, f in enumerate(frequencies):
@@ -1630,7 +1630,7 @@ def _get_ua_config(stage_name, ml='vertex'):
     'assets organized (ie, acme_propensity)', type=str).strip()
   _format_heading('GA Account ID', 'yellow')
   ga_account_id = click.prompt(
-    'What the Google Analytics UA ID', default='UA-12345678-9').strip()
+    'What is the Google Analytics UA ID', default='UA-12345678-9').strip()
   account_id = _check_ga_account_id(ga_account_id)
   identifier = ['GA Client ID', 'User ID']
   _format_heading('GA Join Key type', 'yellow')
