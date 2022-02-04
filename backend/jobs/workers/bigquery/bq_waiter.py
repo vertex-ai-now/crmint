@@ -24,8 +24,9 @@ class BQWaiter(BQWorker):
 
   def _execute(self):
     client = self._get_client()
-    job = client.get_job(self._params['job_id'])
+    job = client.get_job(self._params['bq_job_id'])
+    job.reload()
     if job.error_result is not None:
       raise WorkerException(job.error_result['message'])
     if job.state != 'DONE':
-      self._enqueue('BQWaiter', {'job_id': self._params['job_id']}, 60)
+      self._enqueue('BQWaiter', {'bq_job_id': self._params['bq_job_id']}, 60)
