@@ -39,3 +39,4 @@ class StorageCleaner(StorageWorker):
       if last_updated_timestamp < expiration_timestamp:
         self._delete_file(stat.bucket.name, stat.name)
         self.log_info('gs:/%s file deleted.', stat.name)
+    self.log_info('Finished successfully')

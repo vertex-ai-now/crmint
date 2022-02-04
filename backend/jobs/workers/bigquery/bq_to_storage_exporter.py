@@ -52,3 +52,4 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
         job_config=job_config,
         location=self._params['bq_dataset_location'])
     self._wait(job)
+    self.log_info('Finished successfully')

@@ -35,6 +35,7 @@ class BQScriptExecutor(BQWorker):  # pylint: disable=too-few-public-methods
       job = client.query(
         sql, location=location, job_id=self._get_prefix())
     self._wait(job)
+    self.log_info('Finished successfully')
 
   def _execute(self):
     self._execute_sql_script(self._params['query'], self._params['bq_dataset_location'])

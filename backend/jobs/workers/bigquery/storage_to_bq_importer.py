@@ -114,3 +114,4 @@ class StorageToBQImporter(StorageWorker, BQWorker):  # pylint: disable=too-few-p
         job_id_prefix=self._get_prefix(),
         job_config=job_config)
     self._wait(job)
+    self.log_info('Finished successfully')
