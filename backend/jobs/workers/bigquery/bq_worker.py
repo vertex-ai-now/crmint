@@ -16,6 +16,7 @@
 
 
 import time
+import uuid
 from google.cloud import bigquery
 from jobs.workers.worker import Worker, WorkerException
 
@@ -32,23 +33,18 @@ class BQWorker(Worker):
   def _get_client(self):
     return bigquery.Client(client_options={'scopes': self._SCOPES})
 
-  def _get_prefix(self):
-    return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}_{self._pipeline_id*314}_{self._job_id*2718}'
+  def _get_job_id(self):
+    u = str(uuid.uuid4()).replace('-', '_')
+    return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}_{u}'
 
   def _wait(self, job):
     """Waits for job completion and relays to BQWaiter if it takes too long."""
     delay = 5
-    waiting_time = 5
     time.sleep(delay)
     job.reload()
     while job.state != 'DONE':
-      if waiting_time > 300:  # Once 5 minutes have passed, spawn BQWaiter.
-        self._enqueue('BQWaiter', {'bq_job_id': job.job_id}, 60)
-        return
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
-      time.sleep(delay)
-      waiting_time += delay
+      self._enqueue('BQWaiter', {'bq_job_id': job.job_id}, 60)
+      return
     if job.error_result is not None:
       raise WorkerException(job.error_result['message'])
 
@@ -59,4 +55,3 @@ class BQWorker(Worker):
     dataset = self._params['bq_dataset_id'].strip()
     table = self._params['bq_table_id'].strip()
     return f'{project}{dataset}.{table}'
-
