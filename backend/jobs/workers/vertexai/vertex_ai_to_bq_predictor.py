@@ -72,4 +72,3 @@ class VertexAIToBQPredictor(VertexAIWorker):
     
   def _execute(self):
     self._execute_batch_prediction()
-    self.log_info('Finished successfully!')
