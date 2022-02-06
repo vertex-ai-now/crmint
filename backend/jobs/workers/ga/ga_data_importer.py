@@ -107,3 +107,4 @@ class GADataImporter(GAWorker, StorageWorker):
     self._upload()
     if self._params['max_uploads'] > 0 and not self._params['delete_before']:
       self._delete_older(self._params['max_uploads'])
+    self.log_info('Finished successfully')

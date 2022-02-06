@@ -99,3 +99,4 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
     rows = list(query_iterator)
     total_rows = len(rows)
     self._process_query_results(rows, table.schema, total_rows)
+    self.log_info('Finished successfully')

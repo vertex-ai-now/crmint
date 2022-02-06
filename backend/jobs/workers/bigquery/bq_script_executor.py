@@ -14,7 +14,7 @@
 
 """CRMint's worker executing Standard SQL scripts in BigQuery."""
 
-
+from google.api_core import exceptions
 from jobs.workers.bigquery.bq_worker import BQWorker
 
 
@@ -28,8 +28,13 @@ class BQScriptExecutor(BQWorker):  # pylint: disable=too-few-public-methods
 
   def _execute_sql_script(self, sql, location):
     client = self._get_client()
-    job = client.query(
-      sql, location=location, job_id_prefix=self._get_prefix())
+    job_id = self._get_job_id()
+    try:
+      job = client.get_job(job_id)
+      job.reload()
+    except exceptions.NotFound:
+      job = client.query(
+        sql, location=location, job_id=job_id)
     self._wait(job)
 
   def _execute(self):

@@ -96,4 +96,3 @@ class VertexAITabularTrainer(VertexAIWorker):
 
   def _execute(self):
     self._execute_training()
-    self.log_info('Finished successfully!')

@@ -143,3 +143,4 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
     self._get_audiences()
     self._get_diff()
     self._update_ga_audiences()
+    self.log_info('Finished successfully')

@@ -55,3 +55,4 @@ class BQToVertexAIDataset(VertexAIWorker):
       bq_source=f'bq://{project_id}.{dataset_id}.{table_id}')
     dataset.wait()
     self.log_info(f'Dataset created: {dataset.resource_name}')
+    self.log_info('Finished successfully')

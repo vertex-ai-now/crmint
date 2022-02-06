@@ -87,7 +87,7 @@ class Worker:
     # except Exception as e:
     #   raise WorkerException(e) from e
     self._execute()
-    self.log_info('Finished successfully')
+    #self.log_info('Finished successfully')
     return self._workers_to_enqueue
 
   def _execute(self):

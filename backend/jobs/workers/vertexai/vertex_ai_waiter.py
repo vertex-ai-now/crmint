@@ -37,6 +37,8 @@ class VertexAIWaiter(VertexAIWorker):
             'id': self._params['id'],
             'worker_class': 'VertexAITabularTrainer'},
           60)
+      if pipeline.state == ps.PipelineState.PIPELINE_STATE_SUCCEEDED:
+        self.log_info('Finished successfully!')
     if self._params['worker_class'] == 'VertexAIToBQPredictor':
       job_name = self._params['id']
       location = self._get_location_from_job_name(job_name)
@@ -50,3 +52,5 @@ class VertexAIWaiter(VertexAIWorker):
             'id': self._params['id'],
             'worker_class': 'VertexAIToBQPredictor'},
           60)
+      if job.state == js.JobState.JOB_STATE_SUCCEEDED:
+        self.log_info('Finished successfully!')
